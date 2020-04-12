@@ -1,0 +1,1268 @@
+;EQUIVALENCIAS USADAS PARA REPRESENTAR LAS POSICIONES DE LA IMPRESION DE CADENAS EN PANTALLA Y LOS COLORES
+
+;Posiciones en pantalla para imprimir mensajes para el usuario
+INIXMSJ EQU 3
+INIYMSJ EQU 23
+
+;Posiciones en pantalla para pedir al usuario datos de entrada
+INIXPEDIR EQU 54
+INIYPEDIR EQU 23
+
+FILLASERARR EQU 2
+FILLASERABJ EQU 20
+COLLASERIZQ EQU 7
+COLLASERDCH EQU 45
+
+;Para escribir en color (fondo frontal)
+COLORRESOLVER EQU 0Bh
+COLORMARCAR EQU 9Bh
+COLORBORRAR EQU 00h ;***
+
+;Constantes de tablero y espejos
+NUMCASILLASJUEGO EQU 64
+NUMESPEJOSDEBUG EQU 8
+NUMCOLFILJUEGO EQU 8
+NUMTIPOSESPEJOS EQU 4
+
+;Caracter de marcado de celda
+CARACTMARCADO EQU '*'
+
+data segment
+;Posicion en MatrizJuego
+filMatrizJuego DB ?  ;0-7
+colMatrizJuego DB ?  ;0-7
+posMatrizJuego DB ?  ;0-63
+
+;Matriz tablero de juego
+matrizJuego DB 64 dup(0)
+
+;Para el numero de espejos del juego, las posiciones que ocupan en el tablero y su tipo
+vectorPosEspejos DB 2, 13, 16, 30, 41, 43, 53, 63, 12 dup(0)
+vectorTiposEspejos DB 1, 4, 2, 3, 2, 4, 2, 4, 12 dup(0)
+numEspejos DB 20
+
+;Para los espejos que el usuario marca como existentes
+vectorPosEspejosMarcados DB 20 dup (0)
+numEspejosMarcados DB 0
+
+;Posicion desde la que se dispara el laser
+posLaser DB ?
+direcDisparoLaser DB ?  ;0:arriba
+;1:derecha
+;2:abajo
+;3:izquierda
+
+;Para calcular trayectoria
+;posSalidaLaser DB ?
+cambioTrayTipo1 DB 0, 3, 2, 1
+cambioTrayTipo2 DB 1, 0, 3, 2
+cambioTrayTipo3 DB 2, 1, 0, 3
+cambioTrayTipo4 DB 3, 2, 1, 0
+
+;Para imprimir la la MatrizJuego al resolver
+caractImprimirMatrizJuego DB ' '  ; espacioEnBlanco
+DB '³'  ; espejoTipo1
+DB '/'  ; espejoTipo2
+DB 'Ä'  ; espejoTipo3
+DB '\'  ; espejoTipo4
+
+;Para el PROC colocarCursor
+fila    DB ?
+colum   DB ?
+
+;Para la E de texto por parte del usuario
+cadenaE DB 7 dup (0)
+
+tablero DB "F,C         1   2   3   4   5   6   7   8              ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "            L1  L2  L3  L4  L5  L6  L7  L8             ³             ³", 10, 13
+DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³  LASER1-32  ³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³  _          ³", 10, 13
+DB "1  L32    ³   ³   ³   ³   ³   ³   ³   ³   ³    L9      ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "2  L31    ³   ³   ³   ³   ³   ³   ³   ³   ³    L10     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "3  L30    ³   ³   ³   ³   ³   ³   ³   ³   ³    L11     ³MARCAR1-8,1-8³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³_            ³", 10, 13
+DB "4  L29    ³   ³   ³   ³   ³   ³   ³   ³   ³    L12     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "5  L28    ³   ³   ³   ³   ³   ³   ³   ³   ³    L13     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "6  L27    ³   ³   ³   ³   ³   ³   ³   ³   ³    L14     ³   RESOLVER  ³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³   _         ³", 10, 13
+DB "7  L26    ³   ³   ³   ³   ³   ³   ³   ³   ³    L15     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "8  L25    ³   ³   ³   ³   ³   ³   ³   ³   ³    L16     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³    SALIR    ³", 10, 13
+DB "           L24 L23 L22 L21 L20 L19 L18 L17             ³    _        ³", 10, 13
+DB "                                                       ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ$"
+
+;Mensajes de Interfaz
+msjDebug DB "Modo debug (con tablero precargado)? (S/N)$"
+msjOpcion DB "Introduce Mf,c para marcar R S o Lz para disparar: $"
+msjPerdida DB "Has perdido la partida$"
+msjGanada DB "Enhorabuena! Has ganado la partida$"
+
+data ends
+
+
+
+stack segment
+DW 128 DUP(0)
+stack ends
+
+
+
+code segment
+
+;*************************************************************************************
+;********** Procedimientos utilizados en practicas previas ****************************
+;*************************************************************************************
+
+;Convierte una cadena de caracteres a un numero entero
+;E: DX contiene la direccion de la cadena a convertir (debe apuntar al 1er caracter numerico y terminar en 13 o '$')
+;S: AX contiene el resultado de la conversion, 0 si hay error o si la cadena a convertir es "0"
+CadenaANumero PROC
+push bx
+push cx
+push dx ; cambia con MUL de 16bits
+push si
+push di
+
+mov si, dx
+xor ax, ax
+mov bx, 10
+
+cmp [si], '-'
+jne BCadNum
+
+mov di, si  ;Ajustes si viene un '-' como primer caracter
+inc si
+
+BCadNum:
+mov cl, [si]          ;Controles de fin
+cmp cl, 13
+je compruebaNeg
+cmp cl, '$'
+je compruebaNeg
+
+cmp cl, '0'
+jl error
+cmp cl, '9'
+jg error
+
+mul bx
+sub cl, '0'
+xor ch, ch
+add ax, cx
+inc si
+jmp BCadNum
+
+compruebaNeg:
+cmp [di], '-'
+jne finCadenaANumero
+neg ax
+jmp finCadenaANumero
+
+error:
+xor ax, ax
+
+finCadenaANumero:
+pop di
+pop si
+pop dx
+pop cx
+pop bx
+ret
+CadenaANumero ENDP
+
+
+
+;Convierte un numero entero a una cadena de caracteres terminada en $
+;E: AX contiene el numero a convertir
+;   DX contiene la direccion de la cadena donde almacena la cadena resultado
+NumeroACadena PROC
+push ax
+push bx
+push cx
+push dx
+push di
+
+mov bx, 10
+mov di, dx
+
+xor cx, cx
+
+cmp ax, 0
+jge BNumCad
+
+mov [di], '-'
+inc di
+neg ax
+
+BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+xor dx, dx
+div bx
+add dl, '0'
+push dx
+inc cx
+cmp ax, 0
+jne BNumCad
+
+BInvertir:      ;Bucle para invertir los restos
+pop [di]
+inc di
+loop BInvertir
+
+mov [di], '$'
+
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+NumeroACadena ENDP
+
+
+
+;F: Imprime una cadena terminada en $ en la posicion donde se encuentre el cursor
+;E: DX direccion de comienzo de la cadena a imprimir
+Imprimir PROC
+push ax
+
+mov ah,9h
+int 21h
+
+pop ax
+ret
+Imprimir ENDP
+
+
+
+;F: Imprime un caracter a color en la posicion actual del cursor
+;E: AL contiene el caracter
+;   BL el codigo de color a imprimir
+ImprimirCarColor PROC
+push ax
+push bx
+push cx
+
+mov ah, 9
+xor bh, bh
+mov cx, 1
+int 10h
+
+pop cx
+pop bx
+pop ax
+ret
+ImprimirCarColor ENDP
+
+
+
+;F: Coloca el cursor en una determinada fila y colum de pantalla
+;E: las variables fila y colum deben contener los valores de posicionamiento
+ColocarCursor PROC
+push ax
+push bx
+push dx
+
+mov ah, 2
+mov dh, fila
+mov dl, colum
+xor bh, bh
+int 10h
+
+pop dx
+pop bx
+pop ax
+ret
+ColocarCursor ENDP
+
+
+
+;Lee una cadena por teclado
+;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+LeerCadena PROC
+push ax
+
+mov ah, 0ah
+int 21h
+
+pop ax
+ret
+LeerCadena ENDP
+
+
+;**************************************************************************************
+;************************** Nuevos procedimientos que se entregan ***************************
+;**************************************************************************************
+
+
+;F: Calcula un valor aleatorio entre 0 y un valor maximo dado-1
+;E: BL valor maximo
+;S: AH valor aleatorio calculado
+NumAleatorio PROC
+push cx
+push dx
+
+mov ah,2Ch ;interrupcion que recupera la hora actual del sistema operativo
+int 21h
+;ch=horas cl=minutos dh=segundos dl=centesimas de segundo, 1/100 secs
+
+xor ah,ah
+mov al,dl
+div bl
+
+pop dx
+pop cx
+ret
+NumAleatorio ENDP
+
+
+
+;F: Lee un caracter por teclado sin eco por pantalla
+;S: AL caracter ASCII leido
+LeerTeclaSinEco PROC
+mov ah,8 ;1 para que sea con eco
+int 21h
+
+ret
+LeerTeclaSinEco ENDP
+
+
+
+;F: Oculta el cursor del teclado
+OcultarCursor PROC
+push ax
+push cx
+
+mov ah,1
+mov ch,20h
+xor cl,cl
+int 10h
+
+pop cx
+pop ax
+ret
+OcultarCursor ENDP
+
+
+
+;F: Muestra el cusor del teclado
+MostrarCursor PROC
+push ax
+push cx
+
+mov ah,1
+mov ch,0Bh
+mov cl,0Ch
+int 10h
+
+pop cx
+pop ax
+ret
+MostrarCursor ENDP
+
+
+
+;F: Borra la pantalla (la deja en negro)
+BorrarPantalla PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+xor cx, cx
+mov dh, 24
+mov dl, 79
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarPantalla ENDP
+
+
+;F: Borra la linea de mensajes completa
+BorrarLineaMsj PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+xor cl, cl
+mov ch, INIYMSJ
+mov dh, INIYMSJ+1
+mov dl, 79
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarLineaMsj ENDP
+
+
+
+;F: Borra la zona de las cadenas de mensajes que imprimen en pantalla
+BorrarEntradaUsuario PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+mov cl, INIXPEDIR
+mov ch, INIYMSJ
+mov dh, INIYMSJ+1
+mov dl, INIXPEDIR+4
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarEntradaUsuario ENDP
+
+
+
+;F: Limpia el buffer de entrada del teclado por si tuviera algo
+;  LimpiarBufferTeclado PROC
+;    push ax
+;
+;    mov ax,0C00h
+;    int 21h
+;
+;    pop ax
+;    ret
+;  LimpiarBufferTeclado ENDP
+
+
+;**************************************************************************************
+;******************** Procedimientos de Laboratorios***********************************
+;**************************************************************************************
+
+
+;----------------------------------------- Sesion 6 -----------------------------------------
+
+;F: Calcula a partir de una fila y una columna de la matriz la posicion
+;E: NUMCOLFILAJUEGO, filMatrizJuego, colMatrizJuego
+;S: posMatrizJuego
+MatrizAVector PROC
+
+push ax
+
+mov al, NUMCOLFILJUEGO    ; mueve al registro al NUMCOLFILJUEGO
+
+mul filMatrizJuego        ; multiplica filMatrizJuego por el registro al
+
+add al, colMatrizJuego    ; suma el registro al con colMatrizJuego
+
+mov posMatrizJuego, al    ; mueve el registro al a posMatrizJuego
+
+pop ax
+
+ret
+
+MatrizAVector ENDP
+
+;F: Calcula a partir de una posición, la fila y la columna
+;E: NUMCOLFILAJUEGO, posMatrizJuego
+;S: filMatrizJuego, colMatrizJuego
+VectorAMatriz PROC
+
+push ax
+push dx
+
+mov al, posMatrizJuego      ; mueve posMatrizJuego al registro al
+
+mov dx, NUMCOLFILJUEGO      ; mueve a dx NUMCOLFILJUEGO
+div dl                      ; divide al entre dl y lo almacena en ax
+
+mov filMatrizJuego, al      ; mueve la parte alta de ax (cociente de division)
+;  a la variable filmatrizJuego
+
+mov colMatrizJuego, ah      ; mueve la parte baja de ax (resto de division)
+;  a la variable colmatrizJuego
+
+pop dx
+pop ax
+ret
+VectorAMatriz ENDP
+
+
+;----------------------------------------- Sesion 7 -----------------------------------------
+
+;F: Busca un elemento en el vector.
+;E: AH contiene el valor a buscar.
+;   SI contiene la direccion de memoria del vector.
+;   CX contiene el tamano del vector.
+;S: AL tendra valor 1 si ha encontrado el valor y 0 si no lo encuentra
+
+BusquedaElemento PROC
+
+push si
+push cx
+
+
+cmp cx, 0                 ; compara cx con 0 para saber si el vector es nulo
+
+je fin                    ; en el caso que sea nulo salta al final
+; del procedimiento
+bucle:
+cmp [si],ah               ; Me compara si el elemento de la posicion si,
+; coincide con el elemento buscado
+
+je found                  ; si lo encuentra salta a found
+
+inc si                    ; incrementa si
+
+loop bucle                ; salta a la etiqueta bucle y repite el proceso
+
+mov al,0                  ; pone a 0 ya que no a encontrado el elemento
+jmp fin                   ; salta al final
+
+found:
+mov al,1                  ; pone a uno si encuentra el elemento
+
+fin:                      ; etiqueta fin
+pop cx
+pop si
+
+ret
+BusquedaElemento ENDP
+
+
+;F: Rellena el vector introducido con numeros aleatorios desde 1 a BL (num max).
+;E: SI tiene la direccion de memoria del vector.
+;   CX tiene el numero de elementos aleatorios
+;   BL numero maximo que puede tomar el numero aleatorio
+;S: Vector relleno de tantos numeros aleatorios como se indique
+VectorAleatorio PROC
+push si
+push cx
+
+cmp cx, 0                ; compara cx con 0 para saber si el vector
+; introducido es nulo
+
+je final                 ;llama a la etiqueta final en caso de ser nulo
+
+
+bucleAleatorio:          ; eiqueta de bucle aleatorio
+
+call NumAleatorio        ; llama al procedimiento NumAleatorio
+
+inc ah                   ; incrementa ah
+
+mov [si], ah             ; mueve ese numero aleatorio al vector
+
+inc si                   ; incrementa si
+
+loop bucleAleatorio      ; llamada a la etiqueta bucleAleatorio con bucle loop
+
+final:                   ; etiqueta final
+pop cx
+pop si
+ret
+VectorAleatorio ENDP
+
+
+;F: Inserta elementos aleatorios en un vector
+;E: BL el valor maximo-1 que pueden tomar los numeros aleatorios
+;   SI la direccion del vector
+;   CX tamano del vector
+VectorSinRepetir PROC
+push cx
+push si
+push ax
+push dx
+push di
+
+xor ax, ax
+xor dx, dx
+mov di, si ;para guardar el offset del vector
+mov bh, cl ; para guardar las posiciones
+
+repetir:
+call NumAleatorio  ;genera un numero aleatorio que guarda en ah
+
+mov dl, ah ;para guardar el numero a insertar
+
+push si
+push cx
+
+mov cl, bh
+mov si, di
+call BusquedaElemento ;en ah el numero a buscar
+
+pop cx
+pop si
+
+cmp al, 1
+je repetir  ;si el elemento esta, hay que pedir otro numero
+
+mov [si], dl  ;si no esta se inserta
+inc si        ;cuando se incrementa aqui, se incrementa para el otro PROC que empieza a comparar en las posiciones no insertadas
+loop repetir
+
+
+pop di
+pop dx
+pop ax
+pop si
+pop cx
+
+ret
+VectorSinRepetir ENDP
+
+
+;----------------------------------------- Sesion 8 -----------------------------------------
+
+
+;F: Devuelve en BL un numero entre [0,4] segun la opcion introducida por el usuario
+;E: SI contiene la direccion de memoria del vector que contiene la innstruccion
+;S: BL la opcion marcada
+ValidarOpcion PROC
+
+push ax
+push si
+push di
+
+cmp [si+2], 'R'   ; compara la posicion con 'R'
+je resolverOpcion ; salta en caso que sean iguales
+
+cmp [si+2], 'S'   ; compara la posicion con 'S'
+je salirOpcion    ; salta en caso que sean iguales
+
+cmp [si+2], 'L'   ; compara la posicion con 'L'
+je laserOpcion    ; salta en caso que sean iguales
+
+cmp [si+2], 'B'
+je borrarOpcion
+
+cmp [si+2], 'M'   ; compara la posicion con 'M'
+jne noValido      ; salta en caso que sean diferentes
+
+cmp [si+4], ','   ; compara la posicion con ','
+jne noValido      ; salta en caso que sean diferentes
+
+
+cmp [si+3], '1'   ; compara la fila con '1'
+jl noValido       ; salta en caso de ser mas bajo
+
+cmp [si+3], '8'   ; compara la fila con '8'
+jg noValido       ; salta en caso de ser mas alto
+
+
+cmp [si+5], '1'   ; compara la columna con '1'
+jl noValido       ; salta en caso de ser mas bajo
+
+cmp [si+5], '8'   ; compara la columna con '8'
+jg noValido       ; salta en caso de ser mas alto
+
+
+mov bl, 2h        ;mueve a bl el 2hs
+
+mov al, [si+3]
+sub al, '0'
+mov filMatrizJuego, al     ; mueve a la variable el valor de la fila a marcar
+
+mov al, [si+5]
+sub al, '0'
+mov colMatrizJuego, al      ; mueve a la variable el valor de la columna a marcar
+
+
+jmp final2                   ; salta al final2
+
+
+borrarOpcion:
+
+cmp [si+4], ','   ; compara la posicion con ','
+jne noValido      ; salta en caso que sean diferentes
+
+
+cmp [si+3], '1'   ; compara la fila con '1'
+jl noValido       ; salta en caso de ser mas bajo
+
+cmp [si+3], '8'   ; compara la fila con '8'
+jg noValido       ; salta en caso de ser mas alto
+
+
+cmp [si+5], '1'   ; compara la columna con '1'
+jl noValido       ; salta en caso de ser mas bajo
+
+cmp [si+5], '8'   ; compara la columna con '8'
+jg noValido       ; salta en caso de ser mas alto
+
+
+mov bl, 5h        ;mueve a bl el 2hs
+
+
+mov al, [si+3]
+sub al, '0'
+mov filMatrizJuego, al     ; mueve a la variable el valor de la fila a borrar
+
+mov al, [si+5]
+sub al, '0'
+mov colMatrizJuego, al      ; mueve a la variable el valor de la columna a borrar
+
+
+jmp final2
+
+
+
+laserOpcion:
+
+
+lea dx, [si+3]
+call CadenaANumero         ; transforma el numero a cadena
+
+cmp ax, 1
+jl noValido                ; salta en caso de no estar en los limites
+cmp ax, 32
+jg noValido
+
+mov bl, 1h                 ; mueve a bl 1h
+mov posLaser, al           ; mueve a posLaser al
+jmp final2
+
+
+resolverOpcion:
+
+cmp [si+3],13                 ; compara que solo haya el caracter 'R'
+jne noValido
+
+mov bl,3h                     ; mueve a bl 3h
+jmp final2                    ; salta al final2 de PROC
+
+salirOpcion:
+
+cmp [si+3],13                ; compara que solo haya el caracter 'S'
+jne noValido
+
+mov bl, 4h                   ; mueve a bl 4h
+jmp final2
+; salta al final2 del PROC
+
+noValido:
+; si accede aqui mueve a bl 0h y quiere decir que la cadena introducida no es valida
+mov bl,0h
+
+final2:
+
+pop di
+pop si
+pop ax
+
+ret
+ValidarOpcion ENDP
+
+;----------------------------------------- Sesion 9 -----------------------------------------
+
+;F: Rellena "matrizJuego" con el tipo indicado por "vectorTiposEspejos", en las posiciones
+;   que indica "vectorPosEspejos"
+;E:  SI direccion de comienzo de "matrizJuego"
+;    BX direccion de comienzo de "vectorPosEspejos"
+;    DI direccion de comienzo de "vectorTiposEspejos"
+;    CX tamano los vectores de posicion y tipos de espejos.
+;S: matrizJuego con el tipo de espejos indicado por el vector vectorTiposEspejos,
+;   en las posiciones indicadas por el vector vectorPosEspejos
+RellenarVector PROC
+
+push ax
+push bx
+push di
+
+bucle2:             ; etiqueta bucle
+push bx            ; guarda en la pila en contenido del registro bx
+mov bl, [bx]       ; guarda en bl el contenido de la direccion de memoria de bx
+mov al, [di]       ; guarda en al el contenido de la direccion de memoria de di
+
+mov [si+bx], al    ; guarda en la direccion de memoria de la direccion si+bx el contenido de al
+pop bx             ; recupera el valor inicial de bx
+inc bx             ; incrementa en uno bx para pasar a la siguiente posicion del vector
+inc di             ; incrementa en uno di para pasar a la siguiente posicion del vector
+
+loop bucle2         ; etiqueta de salto a bucle y decremento de cx (donde se guardaba NUMESPEJOSDEBUG)
+
+pop si
+pop bx
+pop ax
+
+ret
+RellenarVector ENDP
+
+
+;F: Establece los parametros de entrada para el procedimiento 'RellenarVector' para luego llamarlo
+;E:
+;S: matrizJuego con el tipo de espejos indicado por el vector vectorTiposEspejos,
+;   en las posiciones indicadas por el vector vectorPosEspejos
+InicializarMatrizJuegoDebug PROC
+
+push cx
+push bx
+push di
+push si
+
+
+lea si,matrizJuego        ; guarda en si la direccion de memoria de inicio del vector matrizJuego
+lea bx,vectorPosEspejos   ; guarda en bx la direccion de memoria de inicio del vector vectorPosEspejos
+lea di,vectorTiposEspejos ; guarda en di la direccion de memoria de inicio del vector vectorTiposEspejos
+mov cx,NUMESPEJOSDEBUG    ; guarda en cx la variable NUMESPEJOSDEBUG
+mov NUMESPEJOS, cl        ; guarda el numeros de espejos en numEspejos de cx
+
+call RellenarVector
+
+pop si
+pop di
+pop bx
+pop cx
+ret
+InicializarMatrizJuegoDebug ENDP
+
+;**************************************************************************************
+;******************** Procedimientos de IU ********************************************
+;**************************************************************************************
+
+
+;**************************************************************************************
+;******************** Procedimientos para la logica del juego *************************
+;**************************************************************************************
+
+
+;; 4 + (fila-1) x 2 para colocar el cursor a lo alto
+;; 12 + (col-1) x 4 para colocar el cursor a lo ancho
+MatrizAPantalla PROC
+
+push ax
+push cx
+
+mov al, filMatrizJuego
+dec al
+
+mov cx, 2
+
+mul cx
+
+add al, 4
+
+mov filMatrizJuego, al
+
+mov al, colMatrizJuego
+dec al
+
+mov cx, 4
+
+mul cx
+
+add al, 12
+
+mov colMatrizJuego, al
+
+pop cx
+pop ax
+
+ret
+MatrizAPantalla ENDP
+
+
+OpcionMarcar PROC
+
+push ax
+push bx
+push cx
+
+call MatrizAVector
+
+mov ah, posMatrizJuego
+lea si, vectorPosEspejosMarcados
+xor cx,cx
+mov cl, numEspejos
+call BusquedaElemento
+
+cmp al, 1
+je finMarcar
+
+call InsertarEnVector
+
+mov ah, NUMESPEJOSMARCADOS
+
+cmp NUMESPEJOSMARCADOS, 20
+je finMarcar
+
+inc ah
+mov NUMESPEJOSMARCADOS, ah
+
+call MatrizAPantalla
+
+mov al, filMatrizJuego
+mov fila, al
+
+mov al, colMatrizJuego
+mov colum, al
+
+call ColocarCursor
+
+mov al, CARACTMARCADO
+mov bl, COLORMARCAR
+
+call ImprimirCarColor
+
+finMarcar:
+pop cx
+pop bx
+pop ax
+ret
+OpcionMarcar ENDP
+
+OpcionLaser PROC
+
+cmp posLaser, 9
+jl laserDown
+
+cmp posLaser,17
+jl laserIzq
+
+cmp posLaser,25
+jl laserUp
+
+mov direcDisparoLaser, 1
+jmp trayectoria
+
+laserDown:
+mov direcDisparoLaser, 2
+jmp trayectoria
+
+laserIzq:
+mov direcDisparoLaser, 3
+jmp trayectoria
+
+laserUp:
+mov direcDisparoLaser, 0
+
+trayectoria:
+
+ret
+OpcionLaser ENDP
+
+
+;F: Elimina del vector el elemento buscado
+;E: SI la direccion del vector
+;   AH el elemento a eliminar
+;   CX el tamano del vector
+;S: vector con elemento eliminado
+EliminarElemento PROC
+
+push si
+push ax
+push cx
+
+bucleEliminar:
+cmp [si], ah
+je encB
+inc si
+loop bucleEliminar
+jmp exitEliminar
+
+encB:
+mov [si], 0
+
+exitEliminar:
+pop cx
+pop ax
+pop si
+ret
+EliminarElemento ENDP
+
+OpcionBorrar PROC
+
+call MatrizAVector
+call MatrizAPantalla
+
+mov al, filMatrizJuego
+mov fila, al
+
+mov al, colMatrizJuego
+mov colum, al
+
+call ColocarCursor
+
+mov al, CARACTMARCADO
+mov bl, COLORBORRAR
+
+call ImprimirCarColor
+
+mov al, numEspejosMarcados
+dec al
+mov numEspejosMarcados,al
+
+
+mov ah, posMatrizJuego
+lea si, vectorPosEspejosMarcados
+xor cx, cx
+mov cl, numEspejos
+call EliminarElemento
+
+
+ret
+OpcionBorrar ENDP
+
+
+OpcionResolver PROC
+ret
+OpcionResolver ENDP
+
+
+NoModoDebug PROC
+
+lea si, vectorPosEspejos
+mov bx, NUMCASILLASJUEGO
+xor cx,cx
+mov cl, numEspejos
+call VectorSinRepetir
+
+lea si, vectorTiposEspejos
+mov bx, NUMTIPOSESPEJOS
+xor cx,cx
+mov cl, numEspejos
+call VectorAleatorio
+
+lea si, matrizJuego
+lea bx, vectorPosEspejos
+lea di, vectorTiposespejos
+xor cx,cx
+mov cl, numEspejos
+
+call RellenarVector
+
+ret
+NoModoDebug ENDP
+
+
+;F: Introduce en el vector el elemento seleccionado
+;E: SI direccion de comienzo de "matrizJuego"
+;   AH elemento a insertar
+;   CX tamano del vector.
+;S: vector con elemento insertardo
+
+InsertarEnVector PROC
+
+push si
+push cx
+push ax
+
+bucleVector:
+
+cmp [si], 0
+je enc
+inc si
+loop bucleVector
+jmp exit
+
+enc:
+mov [si], ah
+
+exit:
+pop ax
+pop cx
+pop si
+ret
+InsertarEnVector ENDP
+
+
+ElegirModoJuego PROC
+
+push ax
+
+pedirCaracter:
+
+call OcultarCursor         ;ocultamos cursor
+call LeerTeclaSinEco       ; llemos tecla si eco en pantalla
+
+cmp al, 'S'               ; vemos si es S
+je debug               ; si no es ninguna saltamos y pedimos otro caracter
+
+cmp al, 'N'                ; vemos si es N
+jne pedirCaracter
+
+call BorrarLineaMsj       ; Borra la linea de pedir modo debug
+call NoModoDebug
+jmp gameStart
+
+debug:
+
+call BorrarLineaMsj       ; Borra la linea de pedir modo debug
+call InicializarMatrizJuegoDebug ; si es modo debug iniciamos la matriz en modo debug
+
+gameStart:
+pop ax
+ret
+ElegirModoJuego ENDP
+
+
+GAME PROC
+
+
+push dx
+push si
+push bx
+
+
+juego:                      ; empieza el juego
+
+call BorrarEntradaUsuario
+
+mov fila,INIYMSJ           ; colocamos el cursor de nuevo para imprimir el mensaje
+mov colum, INIXMSJ
+call ColocarCursor
+
+lea dx, msjOpcion           ; imprimimos el mensaje
+call Imprimir
+
+mov fila,INIYPEDIR          ; ponemos el cursor para pedir al usuario datos
+mov colum, INIXPEDIR
+call ColocarCursor
+
+call MostrarCursor          ; mostramos el cursor
+
+mov CadenaE[0], 5           ; leemos la cadena donde vamos a almacenar los datos
+lea dx, CadenaE
+call LeerCadena
+
+lea si, CadenaE
+call ValidarOpcion           ; vemos si la opcion introducida es correcta
+
+cmp bl, 0                 ; si no es correcta vuelvo a game
+je juego
+
+cmp bl, 1
+je laser
+
+cmp bl, 2
+je marcar
+
+
+;   cmp bl, 3
+;   je resolver
+
+cmp bl, 5
+je borrar
+
+cmp bl, 4
+call BorrarLineaMsj
+jmp EndGame
+
+
+borrar:
+
+cmp numEspejosMarcados, 0
+je juego
+
+call OpcionBorrar
+jmp juego
+
+laser:
+
+call OpcionLaser
+jmp juego
+
+marcar:
+
+call OpcionMarcar
+jmp juego
+
+
+EndGame:                ; fin del juego
+
+pop bx
+pop si
+pop dx
+
+ret
+GAME ENDP
+
+
+
+
+
+;*************************************************************************************
+;************************** Programa Principal ***************************************
+;*************************************************************************************
+
+
+start:
+mov ax, data
+mov ds, ax
+
+lea dx, tablero   ;imprimimos el tablero
+call Imprimir
+
+mov fila, INIYMSJ      ;movemos el cursor a la fila y a la columna para imprimir mensaje
+mov colum, INIXMSJ
+call ColocarCursor
+
+
+lea dx,msjDebug        ;imprimimos el mensaje
+call Imprimir
+
+call ElegirModoJuego
+call GAME
+
+mov ah, 4ch
+int 21h
+
+code ends
+END Start
+
+
+
+;************************************COMENTARIOS**********************************
+;; 4 + (fila-1) x 2 para colocar el cursor a lo alto
+;; 12 + (col-1) x 4 para colocar el cursor a lo ancho
+
+;     para el marcar hay que hacer un nuevo procedimiento para calcular la posicion de del cursor para luego imprimir caracter establecido por las variables
+;     si M1,2 entonces fila = 0 y col = 1
+
+
+; si el laser esta entre [1 - 8] ----> 12 + (col-1) x 4 && (fila+3)   +2 para comparar
+; si el laser esta entre [9 - 16] ---> (col+39) && 4 + (fila-1) x 2    +4 para comparar
+; si el laser esta entre [17 - 24] --> 12 + (col-1) && (fila+17)       +2 para comparar
+; si el laser esta entre [25 - 32] --> (col+11) && 4 + (fila-1) x 2   +4 para comparar
+
+;******* USAR ESTAS EQU *********
+;    FILLASERARR EQU 2
+;    FILLASERABJ EQU 20
+;    COLLASERIZQ EQU 7
+;    COLLASERDCH EQU 45
+;    direcDisparoLaser ?
+
+
+
+;para saber si hemos terminado NUMCOLFILJUEGO - (fila || col) y
+;si hemos acabado tenemos que ver si a acabado en fila +4 para poner la posicion del laser o en col + 2
+;
+
+;    para el laser tienes que guardar en posLaser caundo comprobamos que es L y despues ir viendo si hay espejos
+;    y si hay espejo utilizar variables de cambio de trayectoria, si se sale del tablero acabar poniendo donde llege el numero del laser
+
+
+
+
+
+
+; [SOURCE]: G:\Codigo\ProyectoFinalAmpliacion.asm

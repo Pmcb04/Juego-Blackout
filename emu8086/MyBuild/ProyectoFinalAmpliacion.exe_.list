@@ -1,0 +1,1490 @@
+EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
+ 
+ProyectoFinalAmpliacion.exe_ -- emu8086 assembler version: 4.08  
+ 
+[ 27/04/2019  --  18:55:25 ] 
+ 
+===================================================================================================
+[LINE]     LOC: MACHINE CODE                          SOURCE
+===================================================================================================
+ 
+[   1]        :                                       ;EQUIVALENCIAS USADAS PARA REPRESENTAR LAS POSICIONES DE LA IMPRESION DE CADENAS EN PANTALLA Y LOS COLORES
+[   2]        :                                       
+[   3]        :                                       ;Posiciones en pantalla para imprimir mensajes para el usuario
+[   4]        :                                       INIXMSJ EQU 3
+[   5]        :                                       INIYMSJ EQU 23
+[   6]        :                                       
+[   7]        :                                       ;Posiciones en pantalla para pedir al usuario datos de entrada
+[   8]        :                                       INIXPEDIR EQU 54
+[   9]        :                                       INIYPEDIR EQU 23
+[  10]        :                                       
+[  11]        :                                       FILLASERARR EQU 2
+[  12]        :                                       FILLASERABJ EQU 20
+[  13]        :                                       COLLASERIZQ EQU 7
+[  14]        :                                       COLLASERDCH EQU 45
+[  15]        :                                       
+[  16]        :                                       ;Para escribir en color (fondo frontal)
+[  17]        :                                       COLORRESOLVER EQU 0Bh
+[  18]        :                                       COLORMARCAR EQU 9Bh
+[  19]        :                                       COLORBORRAR EQU 00h ;***
+[  20]        :                                       
+[  21]        :                                       ;Constantes de tablero y espejos
+[  22]        :                                       NUMCASILLASJUEGO EQU 64
+[  23]        :                                       NUMESPEJOSDEBUG EQU 8
+[  24]        :                                       NUMCOLFILJUEGO EQU 8
+[  25]        :                                       NUMTIPOSESPEJOS EQU 4
+[  26]        :                                       
+[  27]        :                                       ;Caracter de marcado de celda
+[  28]        :                                       CARACTMARCADO EQU '*'
+[  29]        :                                       
+[  30]        :                                       data segment
+[  31]        :                                       ;Posicion en MatrizJuego
+[  32]    0000: 00                                    filMatrizJuego DB ?  ;0-7
+[  33]    0001: 00                                    colMatrizJuego DB ?  ;0-7
+[  34]    0002: 00                                    posMatrizJuego DB ?  ;0-63
+[  35]        :                                       
+[  36]        :                                       ;Matriz tablero de juego
+[  37]    0003: 00 00 00 00 00 00 00 00 00 00 00 00   matrizJuego DB 64 dup(0)
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00                         
+[  38]        :                                       
+[  39]        :                                       ;Para el numero de espejos del juego, las posiciones que ocupan en el tablero y su tipo
+[  40]    0043: 02 0D 10 1E 29 2B 35 3F 00 00 00 00   vectorPosEspejos DB 2, 13, 16, 30, 41, 43, 53, 63, 12 dup(0)
+                00 00 00 00 00 00 00 00             
+[  41]    0057: 01 04 02 03 02 04 02 04 00 00 00 00   vectorTiposEspejos DB 1, 4, 2, 3, 2, 4, 2, 4, 12 dup(0)
+                00 00 00 00 00 00 00 00             
+[  42]    006B: 14                                    numEspejos DB 20
+[  43]        :                                       
+[  44]        :                                       ;Para los espejos que el usuario marca como existentes
+[  45]    006C: 00 00 00 00 00 00 00 00 00 00 00 00   vectorPosEspejosMarcados DB 20 dup (0)
+                00 00 00 00 00 00 00 00             
+[  46]    0080: 00                                    numEspejosMarcados DB 0
+[  47]        :                                       
+[  48]        :                                       ;Posicion desde la que se dispara el laser
+[  49]    0081: 00                                    posLaser DB ?
+[  50]    0082: 00                                    direcDisparoLaser DB ?  ;0:arriba
+[  51]        :                                       ;1:derecha
+[  52]        :                                       ;2:abajo
+[  53]        :                                       ;3:izquierda
+[  54]        :                                       
+[  55]        :                                       ;Para calcular trayectoria
+[  56]        :                                       ;posSalidaLaser DB ?
+[  57]    0083: 00 03 02 01                           cambioTrayTipo1 DB 0, 3, 2, 1
+[  58]    0087: 01 00 03 02                           cambioTrayTipo2 DB 1, 0, 3, 2
+[  59]    008B: 02 01 00 03                           cambioTrayTipo3 DB 2, 1, 0, 3
+[  60]    008F: 03 02 01 00                           cambioTrayTipo4 DB 3, 2, 1, 0
+[  61]        :                                       
+[  62]        :                                       ;Para imprimir la la MatrizJuego al resolver
+[  63]    0093: 20                                    caractImprimirMatrizJuego DB ' '  ; espacioEnBlanco
+[  64]    0094: B3                                    DB '³'  ; espejoTipo1
+[  65]    0095: 2F                                    DB '/'  ; espejoTipo2
+[  66]    0096: C4                                    DB 'Ä'  ; espejoTipo3
+[  67]    0097: 5C                                    DB '\'  ; espejoTipo4
+[  68]        :                                       
+[  69]        :                                       ;Para el PROC colocarCursor
+[  70]    0098: 00                                    fila    DB ?
+[  71]    0099: 00                                    colum   DB ?
+[  72]        :                                       
+[  73]        :                                       ;Para la E de texto por parte del usuario
+[  74]    009A: 00 00 00 00 00 00 00                  cadenaE DB 7 dup (0)
+[  75]        :                                       
+[  76]    00A1: 46 2C 43 20 20 20 20 20 20 20 20 20   tablero DB "F,C         1   2   3   4   5   6   7   8              ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                31 20 20 20 32 20 20 20 33 20 20 20 
+                34 20 20 20 35 20 20 20 36 20 20 20 
+                37 20 20 20 38 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  77]    00E9: 20 20 20 20 20 20 20 20 20 20 20 20   DB "            L1  L2  L3  L4  L5  L6  L7  L8             ³             ³", 10, 13
+                4C 31 20 20 4C 32 20 20 4C 33 20 20 
+                4C 34 20 20 4C 35 20 20 4C 36 20 20 
+                4C 37 20 20 4C 38 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  78]    0131: 20 20 20 20 20 20 20 20 20 20 B3 20   DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³  LASER1-32  ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 4C 41 
+                53 45 52 31 2D 33 32 20 20 B3 0A 0D 
+                                                    
+[  79]    0179: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³  _          ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 5F 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  80]    01C1: 31 20 20 4C 33 32 20 20 20 20 B3 20   DB "1  L32    ³   ³   ³   ³   ³   ³   ³   ³   ³    L9      ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                39 20 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  81]    0209: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  82]    023A: 32 20 20 4C 33 31 20 20 20 20 B3 20   DB "2  L31    ³   ³   ³   ³   ³   ³   ³   ³   ³    L10     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 30 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  83]    0282: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  84]    02CA: 33 20 20 4C 33 30 20 20 20 20 B3 20   DB "3  L30    ³   ³   ³   ³   ³   ³   ³   ³   ³    L11     ³MARCAR1-8,1-8³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 31 20 20 20 20 20 B3 4D 41 52 43 
+                41 52 31 2D 38 2C 31 2D 38 B3 0A 0D 
+                                                    
+[  85]    0312: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³_            ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 5F 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  86]    035A: 34 20 20 4C 32 39 20 20 20 20 B3 20   DB "4  L29    ³   ³   ³   ³   ³   ³   ³   ³   ³    L12     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 32 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  87]    03A2: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  88]    03D3: 35 20 20 4C 32 38 20 20 20 20 B3 20   DB "5  L28    ³   ³   ³   ³   ³   ³   ³   ³   ³    L13     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 33 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  89]    041B: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  90]    0463: 36 20 20 4C 32 37 20 20 20 20 B3 20   DB "6  L27    ³   ³   ³   ³   ³   ³   ³   ³   ³    L14     ³   RESOLVER  ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 34 20 20 20 20 20 B3 20 20 20 52 
+                45 53 4F 4C 56 45 52 20 20 B3 0A 0D 
+                                                    
+[  91]    04AB: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³   _         ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 5F 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  92]    04F3: 37 20 20 4C 32 36 20 20 20 20 B3 20   DB "7  L26    ³   ³   ³   ³   ³   ³   ³   ³   ³    L15     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 35 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  93]    053B: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  94]    056C: 38 20 20 4C 32 35 20 20 20 20 B3 20   DB "8  L25    ³   ³   ³   ³   ³   ³   ³   ³   ³    L16     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 36 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  95]    05B4: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  96]    05FC: 20 20 20 20 20 20 20 20 20 20 B3 20   DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³    SALIR    ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                53 41 4C 49 52 20 20 20 20 B3 0A 0D 
+                                                    
+[  97]    0644: 20 20 20 20 20 20 20 20 20 20 20 4C   DB "           L24 L23 L22 L21 L20 L19 L18 L17             ³    _        ³", 10, 13
+                32 34 20 4C 32 33 20 4C 32 32 20 4C 
+                32 31 20 4C 32 30 20 4C 31 39 20 4C 
+                31 38 20 4C 31 37 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                5F 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  98]    068C: 20 20 20 20 20 20 20 20 20 20 20 20   DB "                                                       ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ$"
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 24    
+[  99]        :                                       
+[ 100]        :                                       ;Mensajes de Interfaz
+[ 101]    06D3: 4D 6F 64 6F 20 64 65 62 75 67 20 28   msjDebug DB "Modo debug (con tablero precargado)? (S/N)$"
+                63 6F 6E 20 74 61 62 6C 65 72 6F 20 
+                70 72 65 63 61 72 67 61 64 6F 29 3F 
+                20 28 53 2F 4E 29 24                
+[ 102]    06FE: 49 6E 74 72 6F 64 75 63 65 20 4D 66   msjOpcion DB "Introduce Mf,c para marcar R S o Lz para disparar: $"
+                2C 63 20 70 61 72 61 20 6D 61 72 63 
+                61 72 20 52 20 53 20 6F 20 4C 7A 20 
+                70 61 72 61 20 64 69 73 70 61 72 61 
+                72 3A 20 24                         
+[ 103]    0732: 48 61 73 20 70 65 72 64 69 64 6F 20   msjPerdida DB "Has perdido la partida$"
+                6C 61 20 70 61 72 74 69 64 61 24    
+[ 104]    0749: 45 6E 68 6F 72 61 62 75 65 6E 61 21   msjGanada DB "Enhorabuena! Has ganado la partida$"
+                20 48 61 73 20 67 61 6E 61 64 6F 20 
+                6C 61 20 70 61 72 74 69 64 61 24    
+[ 105]        :                                       
+[ 106]        :                                       data ends
+[ 107]        :                                       
+[ 108]        :                                       
+[ 109]        :                                       
+[ 110]        :                                       stack segment
+[ 111]    0770: 00 00 00 00 00 00 00 00 00 00 00 00   DW 128 DUP(0)
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00                         
+[ 112]        :                                       stack ends
+[ 113]        :                                       
+[ 114]        :                                       
+[ 115]        :                                       
+[ 116]        :                                       code segment
+[ 117]        :                                       
+[ 118]        :                                       ;*************************************************************************************
+[ 119]        :                                       ;********** Procedimientos utilizados en practicas previas ****************************
+[ 120]        :                                       ;*************************************************************************************
+[ 121]        :                                       
+[ 122]        :                                       ;Convierte una cadena de caracteres a un numero entero
+[ 123]        :                                       ;E: DX contiene la direccion de la cadena a convertir (debe apuntar al 1er caracter numerico y terminar en 13 o '$')
+[ 124]        :                                       ;S: AX contiene el resultado de la conversion, 0 si hay error o si la cadena a convertir es "0"
+[ 125]    0870:                                       CadenaANumero PROC
+[ 126]    0870: 53                                    push bx
+[ 127]    0871: 51                                    push cx
+[ 128]    0872: 52                                    push dx ; cambia con MUL de 16bits
+[ 129]    0873: 56                                    push si
+[ 130]    0874: 57                                    push di
+[ 131]        :                                       
+[ 132]    0875: 8B F2                                 mov si, dx
+[ 133]    0877: 33 C0                                 xor ax, ax
+[ 134]    0879: BB 0A 00                              mov bx, 10
+[ 135]        :                                       
+[ 136]    087C: 80 3C 2D                              cmp [si], '-'
+[ 137]    087F: 75 03                                 jne BCadNum
+[ 138]        :                                       
+[ 139]    0881: 8B FE                                 mov di, si  ;Ajustes si viene un '-' como primer caracter
+[ 140]    0883: 46                                    inc si
+[ 141]        :                                       
+[ 142]    0884:                                       BCadNum:
+[ 143]    0884: 8A 0C                                 mov cl, [si]          ;Controles de fin
+[ 144]    0886: 80 F9 0D                              cmp cl, 13
+[ 145]    0889: 74 1B                                 je compruebaNeg
+[ 146]    088B: 80 F9 24                              cmp cl, '$'
+[ 147]    088E: 74 16                                 je compruebaNeg
+[ 148]        :                                       
+[ 149]    0890: 80 F9 30                              cmp cl, '0'
+[ 150]    0893: 7C 1A                                 jl error
+[ 151]    0895: 80 F9 39                              cmp cl, '9'
+[ 152]    0898: 7F 15                                 jg error
+[ 153]        :                                       
+[ 154]    089A: F7 E3                                 mul bx
+[ 155]    089C: 80 E9 30                              sub cl, '0'
+[ 156]    089F: 32 ED                                 xor ch, ch
+[ 157]    08A1: 03 C1                                 add ax, cx
+[ 158]    08A3: 46                                    inc si
+[ 159]    08A4: EB DE                                 jmp BCadNum
+[ 160]        :                                       
+[ 161]    08A6:                                       compruebaNeg:
+[ 162]    08A6: 80 3D 2D                              cmp [di], '-'
+[ 163]    08A9: 75 06                                 jne finCadenaANumero
+[ 164]    08AB: F7 D8                                 neg ax
+[ 165]    08AD: EB 02                                 jmp finCadenaANumero
+[ 166]        :                                       
+[ 167]    08AF:                                       error:
+[ 168]    08AF: 33 C0                                 xor ax, ax
+[ 169]        :                                       
+[ 170]    08B1:                                       finCadenaANumero:
+[ 171]    08B1: 5F                                    pop di
+[ 172]    08B2: 5E                                    pop si
+[ 173]    08B3: 5A                                    pop dx
+[ 174]    08B4: 59                                    pop cx
+[ 175]    08B5: 5B                                    pop bx
+[ 176]    08B6: C3                                    ret
+[ 177]        :                                       CadenaANumero ENDP
+[ 178]        :                                       
+[ 179]        :                                       
+[ 180]        :                                       
+[ 181]        :                                       ;Convierte un numero entero a una cadena de caracteres terminada en $
+[ 182]        :                                       ;E: AX contiene el numero a convertir
+[ 183]        :                                       ;   DX contiene la direccion de la cadena donde almacena la cadena resultado
+[ 184]    08B7:                                       NumeroACadena PROC
+[ 185]    08B7: 50                                    push ax
+[ 186]    08B8: 53                                    push bx
+[ 187]    08B9: 51                                    push cx
+[ 188]    08BA: 52                                    push dx
+[ 189]    08BB: 57                                    push di
+[ 190]        :                                       
+[ 191]    08BC: BB 0A 00                              mov bx, 10
+[ 192]    08BF: 8B FA                                 mov di, dx
+[ 193]        :                                       
+[ 194]    08C1: 33 C9                                 xor cx, cx
+[ 195]        :                                       
+[ 196]    08C3: 3D 00 00                              cmp ax, 0
+[ 197]    08C6: 7D 06                                 jge BNumCad
+[ 198]        :                                       
+[ 199]    08C8: C6 05 2D                              mov [di], '-'
+[ 200]    08CB: 47                                    inc di
+[ 201]    08CC: F7 D8                                 neg ax
+[ 202]        :                                       
+[ 203]    08CE:                                       BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+[ 204]    08CE: 33 D2                                 xor dx, dx
+[ 205]    08D0: F7 F3                                 div bx
+[ 206]    08D2: 80 C2 30                              add dl, '0'
+[ 207]    08D5: 52                                    push dx
+[ 208]    08D6: 41                                    inc cx
+[ 209]    08D7: 3D 00 00                              cmp ax, 0
+[ 210]    08DA: 75 F2                                 jne BNumCad
+[ 211]        :                                       
+[ 212]    08DC:                                       BInvertir:      ;Bucle para invertir los restos
+[ 213]    08DC: 8F 05                                 pop [di]
+[ 214]    08DE: 47                                    inc di
+[ 215]    08DF: E2 FB                                 loop BInvertir
+[ 216]        :                                       
+[ 217]    08E1: C6 05 24                              mov [di], '$'
+[ 218]        :                                       
+[ 219]    08E4: 5F                                    pop di
+[ 220]    08E5: 5A                                    pop dx
+[ 221]    08E6: 59                                    pop cx
+[ 222]    08E7: 5B                                    pop bx
+[ 223]    08E8: 58                                    pop ax
+[ 224]    08E9: C3                                    ret
+[ 225]        :                                       NumeroACadena ENDP
+[ 226]        :                                       
+[ 227]        :                                       
+[ 228]        :                                       
+[ 229]        :                                       ;F: Imprime una cadena terminada en $ en la posicion donde se encuentre el cursor
+[ 230]        :                                       ;E: DX direccion de comienzo de la cadena a imprimir
+[ 231]    08EA:                                       Imprimir PROC
+[ 232]    08EA: 50                                    push ax
+[ 233]        :                                       
+[ 234]    08EB: B4 09                                 mov ah,9h
+[ 235]    08ED: CD 21                                 int 21h
+[ 236]        :                                       
+[ 237]    08EF: 58                                    pop ax
+[ 238]    08F0: C3                                    ret
+[ 239]        :                                       Imprimir ENDP
+[ 240]        :                                       
+[ 241]        :                                       
+[ 242]        :                                       
+[ 243]        :                                       ;F: Imprime un caracter a color en la posicion actual del cursor
+[ 244]        :                                       ;E: AL contiene el caracter
+[ 245]        :                                       ;   BL el codigo de color a imprimir
+[ 246]    08F1:                                       ImprimirCarColor PROC
+[ 247]    08F1: 50                                    push ax
+[ 248]    08F2: 53                                    push bx
+[ 249]    08F3: 51                                    push cx
+[ 250]        :                                       
+[ 251]    08F4: B4 09                                 mov ah, 9
+[ 252]    08F6: 32 FF                                 xor bh, bh
+[ 253]    08F8: B9 01 00                              mov cx, 1
+[ 254]    08FB: CD 10                                 int 10h
+[ 255]        :                                       
+[ 256]    08FD: 59                                    pop cx
+[ 257]    08FE: 5B                                    pop bx
+[ 258]    08FF: 58                                    pop ax
+[ 259]    0900: C3                                    ret
+[ 260]        :                                       ImprimirCarColor ENDP
+[ 261]        :                                       
+[ 262]        :                                       
+[ 263]        :                                       
+[ 264]        :                                       ;F: Coloca el cursor en una determinada fila y colum de pantalla
+[ 265]        :                                       ;E: las variables fila y colum deben contener los valores de posicionamiento
+[ 266]    0901:                                       ColocarCursor PROC
+[ 267]    0901: 50                                    push ax
+[ 268]    0902: 53                                    push bx
+[ 269]    0903: 52                                    push dx
+[ 270]        :                                       
+[ 271]    0904: B4 02                                 mov ah, 2
+[ 272]    0906: 8A 36 98 00                           mov dh, fila
+[ 273]    090A: 8A 16 99 00                           mov dl, colum
+[ 274]    090E: 32 FF                                 xor bh, bh
+[ 275]    0910: CD 10                                 int 10h
+[ 276]        :                                       
+[ 277]    0912: 5A                                    pop dx
+[ 278]    0913: 5B                                    pop bx
+[ 279]    0914: 58                                    pop ax
+[ 280]    0915: C3                                    ret
+[ 281]        :                                       ColocarCursor ENDP
+[ 282]        :                                       
+[ 283]        :                                       
+[ 284]        :                                       
+[ 285]        :                                       ;Lee una cadena por teclado
+[ 286]        :                                       ;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+[ 287]        :                                       ;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+[ 288]    0916:                                       LeerCadena PROC
+[ 289]    0916: 50                                    push ax
+[ 290]        :                                       
+[ 291]    0917: B4 0A                                 mov ah, 0ah
+[ 292]    0919: CD 21                                 int 21h
+[ 293]        :                                       
+[ 294]    091B: 58                                    pop ax
+[ 295]    091C: C3                                    ret
+[ 296]        :                                       LeerCadena ENDP
+[ 297]        :                                       
+[ 298]        :                                       
+[ 299]        :                                       ;**************************************************************************************
+[ 300]        :                                       ;************************** Nuevos procedimientos que se entregan ***************************
+[ 301]        :                                       ;**************************************************************************************
+[ 302]        :                                       
+[ 303]        :                                       
+[ 304]        :                                       ;F: Calcula un valor aleatorio entre 0 y un valor maximo dado-1
+[ 305]        :                                       ;E: BL valor maximo
+[ 306]        :                                       ;S: AH valor aleatorio calculado
+[ 307]    091D:                                       NumAleatorio PROC
+[ 308]    091D: 51                                    push cx
+[ 309]    091E: 52                                    push dx
+[ 310]        :                                       
+[ 311]    091F: B4 2C                                 mov ah,2Ch ;interrupcion que recupera la hora actual del sistema operativo
+[ 312]    0921: CD 21                                 int 21h
+[ 313]        :                                       ;ch=horas cl=minutos dh=segundos dl=centesimas de segundo, 1/100 secs
+[ 314]        :                                       
+[ 315]    0923: 32 E4                                 xor ah,ah
+[ 316]    0925: 8A C2                                 mov al,dl
+[ 317]    0927: F6 F3                                 div bl
+[ 318]        :                                       
+[ 319]    0929: 5A                                    pop dx
+[ 320]    092A: 59                                    pop cx
+[ 321]    092B: C3                                    ret
+[ 322]        :                                       NumAleatorio ENDP
+[ 323]        :                                       
+[ 324]        :                                       
+[ 325]        :                                       
+[ 326]        :                                       ;F: Lee un caracter por teclado sin eco por pantalla
+[ 327]        :                                       ;S: AL caracter ASCII leido
+[ 328]    092C:                                       LeerTeclaSinEco PROC
+[ 329]    092C: B4 08                                 mov ah,8 ;1 para que sea con eco
+[ 330]    092E: CD 21                                 int 21h
+[ 331]        :                                       
+[ 332]    0930: C3                                    ret
+[ 333]        :                                       LeerTeclaSinEco ENDP
+[ 334]        :                                       
+[ 335]        :                                       
+[ 336]        :                                       
+[ 337]        :                                       ;F: Oculta el cursor del teclado
+[ 338]    0931:                                       OcultarCursor PROC
+[ 339]    0931: 50                                    push ax
+[ 340]    0932: 51                                    push cx
+[ 341]        :                                       
+[ 342]    0933: B4 01                                 mov ah,1
+[ 343]    0935: B5 20                                 mov ch,20h
+[ 344]    0937: 32 C9                                 xor cl,cl
+[ 345]    0939: CD 10                                 int 10h
+[ 346]        :                                       
+[ 347]    093B: 59                                    pop cx
+[ 348]    093C: 58                                    pop ax
+[ 349]    093D: C3                                    ret
+[ 350]        :                                       OcultarCursor ENDP
+[ 351]        :                                       
+[ 352]        :                                       
+[ 353]        :                                       
+[ 354]        :                                       ;F: Muestra el cusor del teclado
+[ 355]    093E:                                       MostrarCursor PROC
+[ 356]    093E: 50                                    push ax
+[ 357]    093F: 51                                    push cx
+[ 358]        :                                       
+[ 359]    0940: B4 01                                 mov ah,1
+[ 360]    0942: B5 0B                                 mov ch,0Bh
+[ 361]    0944: B1 0C                                 mov cl,0Ch
+[ 362]    0946: CD 10                                 int 10h
+[ 363]        :                                       
+[ 364]    0948: 59                                    pop cx
+[ 365]    0949: 58                                    pop ax
+[ 366]    094A: C3                                    ret
+[ 367]        :                                       MostrarCursor ENDP
+[ 368]        :                                       
+[ 369]        :                                       
+[ 370]        :                                       
+[ 371]        :                                       ;F: Borra la pantalla (la deja en negro)
+[ 372]    094B:                                       BorrarPantalla PROC
+[ 373]    094B: 50                                    push ax
+[ 374]    094C: 53                                    push bx
+[ 375]    094D: 51                                    push cx
+[ 376]    094E: 52                                    push dx
+[ 377]        :                                       
+[ 378]    094F: B4 06                                 mov ah, 6h
+[ 379]    0951: 32 C0                                 xor al, al
+[ 380]    0953: B7 07                                 mov bh, 7
+[ 381]    0955: 33 C9                                 xor cx, cx
+[ 382]    0957: B6 18                                 mov dh, 24
+[ 383]    0959: B2 4F                                 mov dl, 79
+[ 384]    095B: CD 10                                 int 10h
+[ 385]        :                                       
+[ 386]    095D: 5A                                    pop dx
+[ 387]    095E: 59                                    pop cx
+[ 388]    095F: 5B                                    pop bx
+[ 389]    0960: 58                                    pop ax
+[ 390]    0961: C3                                    ret
+[ 391]        :                                       BorrarPantalla ENDP
+[ 392]        :                                       
+[ 393]        :                                       
+[ 394]        :                                       ;F: Borra la linea de mensajes completa
+[ 395]    0962:                                       BorrarLineaMsj PROC
+[ 396]    0962: 50                                    push ax
+[ 397]    0963: 53                                    push bx
+[ 398]    0964: 51                                    push cx
+[ 399]    0965: 52                                    push dx
+[ 400]        :                                       
+[ 401]    0966: B4 06                                 mov ah, 6h
+[ 402]    0968: 32 C0                                 xor al, al
+[ 403]    096A: B7 07                                 mov bh, 7
+[ 404]    096C: 32 C9                                 xor cl, cl
+[ 405]    096E: B5 17                                 mov ch, INIYMSJ
+[ 406]    0970: B6 18                                 mov dh, INIYMSJ+1
+[ 407]    0972: B2 4F                                 mov dl, 79
+[ 408]    0974: CD 10                                 int 10h
+[ 409]        :                                       
+[ 410]    0976: 5A                                    pop dx
+[ 411]    0977: 59                                    pop cx
+[ 412]    0978: 5B                                    pop bx
+[ 413]    0979: 58                                    pop ax
+[ 414]    097A: C3                                    ret
+[ 415]        :                                       BorrarLineaMsj ENDP
+[ 416]        :                                       
+[ 417]        :                                       
+[ 418]        :                                       
+[ 419]        :                                       ;F: Borra la zona de las cadenas de mensajes que imprimen en pantalla
+[ 420]    097B:                                       BorrarEntradaUsuario PROC
+[ 421]    097B: 50                                    push ax
+[ 422]    097C: 53                                    push bx
+[ 423]    097D: 51                                    push cx
+[ 424]    097E: 52                                    push dx
+[ 425]        :                                       
+[ 426]    097F: B4 06                                 mov ah, 6h
+[ 427]    0981: 32 C0                                 xor al, al
+[ 428]    0983: B7 07                                 mov bh, 7
+[ 429]    0985: B1 36                                 mov cl, INIXPEDIR
+[ 430]    0987: B5 17                                 mov ch, INIYMSJ
+[ 431]    0989: B6 18                                 mov dh, INIYMSJ+1
+[ 432]    098B: B2 3A                                 mov dl, INIXPEDIR+4
+[ 433]    098D: CD 10                                 int 10h
+[ 434]        :                                       
+[ 435]    098F: 5A                                    pop dx
+[ 436]    0990: 59                                    pop cx
+[ 437]    0991: 5B                                    pop bx
+[ 438]    0992: 58                                    pop ax
+[ 439]    0993: C3                                    ret
+[ 440]        :                                       BorrarEntradaUsuario ENDP
+[ 441]        :                                       
+[ 442]        :                                       
+[ 443]        :                                       
+[ 444]        :                                       ;F: Limpia el buffer de entrada del teclado por si tuviera algo
+[ 445]        :                                       ;  LimpiarBufferTeclado PROC
+[ 446]        :                                       ;    push ax
+[ 447]        :                                       ;
+[ 448]        :                                       ;    mov ax,0C00h
+[ 449]        :                                       ;    int 21h
+[ 450]        :                                       ;
+[ 451]        :                                       ;    pop ax
+[ 452]        :                                       ;    ret
+[ 453]        :                                       ;  LimpiarBufferTeclado ENDP
+[ 454]        :                                       
+[ 455]        :                                       
+[ 456]        :                                       ;**************************************************************************************
+[ 457]        :                                       ;******************** Procedimientos de Laboratorios***********************************
+[ 458]        :                                       ;**************************************************************************************
+[ 459]        :                                       
+[ 460]        :                                       
+[ 461]        :                                       ;----------------------------------------- Sesion 6 -----------------------------------------
+[ 462]        :                                       
+[ 463]        :                                       ;F: Calcula a partir de una fila y una columna de la matriz la posicion
+[ 464]        :                                       ;E: NUMCOLFILAJUEGO, filMatrizJuego, colMatrizJuego
+[ 465]        :                                       ;S: posMatrizJuego
+[ 466]    0994:                                       MatrizAVector PROC
+[ 467]        :                                       
+[ 468]    0994: 50                                    push ax
+[ 469]        :                                       
+[ 470]    0995: B0 08                                 mov al, NUMCOLFILJUEGO    ; mueve al registro al NUMCOLFILJUEGO
+[ 471]        :                                       
+[ 472]    0997: F6 26 00 00                           mul filMatrizJuego        ; multiplica filMatrizJuego por el registro al
+[ 473]        :                                       
+[ 474]    099B: 02 06 01 00                           add al, colMatrizJuego    ; suma el registro al con colMatrizJuego
+[ 475]        :                                       
+[ 476]    099F: A2 02 00                              mov posMatrizJuego, al    ; mueve el registro al a posMatrizJuego
+[ 477]        :                                       
+[ 478]    09A2: 58                                    pop ax
+[ 479]        :                                       
+[ 480]    09A3: C3                                    ret
+[ 481]        :                                       
+[ 482]        :                                       MatrizAVector ENDP
+[ 483]        :                                       
+[ 484]        :                                       ;F: Calcula a partir de una posición, la fila y la columna
+[ 485]        :                                       ;E: NUMCOLFILAJUEGO, posMatrizJuego
+[ 486]        :                                       ;S: filMatrizJuego, colMatrizJuego
+[ 487]    09A4:                                       VectorAMatriz PROC
+[ 488]        :                                       
+[ 489]    09A4: 50                                    push ax
+[ 490]    09A5: 52                                    push dx
+[ 491]        :                                       
+[ 492]    09A6: A0 02 00                              mov al, posMatrizJuego      ; mueve posMatrizJuego al registro al
+[ 493]        :                                       
+[ 494]    09A9: BA 08 00                              mov dx, NUMCOLFILJUEGO      ; mueve a dx NUMCOLFILJUEGO
+[ 495]    09AC: F6 F2                                 div dl                      ; divide al entre dl y lo almacena en ax
+[ 496]        :                                       
+[ 497]    09AE: A2 00 00                              mov filMatrizJuego, al      ; mueve la parte alta de ax (cociente de division)
+[ 498]        :                                       ;  a la variable filmatrizJuego
+[ 499]        :                                       
+[ 500]    09B1: 88 26 01 00                           mov colMatrizJuego, ah      ; mueve la parte baja de ax (resto de division)
+[ 501]        :                                       ;  a la variable colmatrizJuego
+[ 502]        :                                       
+[ 503]    09B5: 5A                                    pop dx
+[ 504]    09B6: 58                                    pop ax
+[ 505]    09B7: C3                                    ret
+[ 506]        :                                       VectorAMatriz ENDP
+[ 507]        :                                       
+[ 508]        :                                       
+[ 509]        :                                       ;----------------------------------------- Sesion 7 -----------------------------------------
+[ 510]        :                                       
+[ 511]        :                                       ;F: Busca un elemento en el vector.
+[ 512]        :                                       ;E: AH contiene el valor a buscar.
+[ 513]        :                                       ;   SI contiene la direccion de memoria del vector.
+[ 514]        :                                       ;   CX contiene el tamano del vector.
+[ 515]        :                                       ;S: AL tendra valor 1 si ha encontrado el valor y 0 si no lo encuentra
+[ 516]        :                                       
+[ 517]    09B8:                                       BusquedaElemento PROC
+[ 518]        :                                       
+[ 519]    09B8: 56                                    push si
+[ 520]    09B9: 51                                    push cx
+[ 521]        :                                       
+[ 522]        :                                       
+[ 523]    09BA: 83 F9 00                              cmp cx, 0                 ; compara cx con 0 para saber si el vector es nulo
+[ 524]        :                                       
+[ 525]    09BD: 74 0D                                 je fin                    ; en el caso que sea nulo salta al final
+[ 526]        :                                       ; del procedimiento
+[ 527]    09BF:                                       bucle:
+[ 528]    09BF: 38 24                                 cmp [si],ah               ; Me compara si el elemento de la posicion si,
+[ 529]        :                                       ; coincide con el elemento buscado
+[ 530]        :                                       
+[ 531]    09C1: 74 07                                 je found                  ; si lo encuentra salta a found
+[ 532]        :                                       
+[ 533]    09C3: 46                                    inc si                    ; incrementa si
+[ 534]        :                                       
+[ 535]    09C4: E2 F9                                 loop bucle                ; salta a la etiqueta bucle y repite el proceso
+[ 536]        :                                       
+[ 537]    09C6: B0 00                                 mov al,0                  ; pone a 0 ya que no a encontrado el elemento
+[ 538]    09C8: EB 02                                 jmp fin                   ; salta al final
+[ 539]        :                                       
+[ 540]    09CA:                                       found:
+[ 541]    09CA: B0 01                                 mov al,1                  ; pone a uno si encuentra el elemento
+[ 542]        :                                       
+[ 543]    09CC:                                       fin:                      ; etiqueta fin
+[ 544]    09CC: 59                                    pop cx
+[ 545]    09CD: 5E                                    pop si
+[ 546]        :                                       
+[ 547]    09CE: C3                                    ret
+[ 548]        :                                       BusquedaElemento ENDP
+[ 549]        :                                       
+[ 550]        :                                       
+[ 551]        :                                       ;F: Rellena el vector introducido con numeros aleatorios desde 1 a BL (num max).
+[ 552]        :                                       ;E: SI tiene la direccion de memoria del vector.
+[ 553]        :                                       ;   CX tiene el numero de elementos aleatorios
+[ 554]        :                                       ;   BL numero maximo que puede tomar el numero aleatorio
+[ 555]        :                                       ;S: Vector relleno de tantos numeros aleatorios como se indique
+[ 556]    09CF:                                       VectorAleatorio PROC
+[ 557]    09CF: 56                                    push si
+[ 558]    09D0: 51                                    push cx
+[ 559]        :                                       
+[ 560]    09D1: 83 F9 00                              cmp cx, 0                ; compara cx con 0 para saber si el vector
+[ 561]        :                                       ; introducido es nulo
+[ 562]        :                                       
+[ 563]    09D4: 74 0A                                 je final                 ;llama a la etiqueta final en caso de ser nulo
+[ 564]        :                                       
+[ 565]        :                                       
+[ 566]    09D6:                                       bucleAleatorio:          ; eiqueta de bucle aleatorio
+[ 567]        :                                       
+[ 568]    09D6: E8 44 FF                              call NumAleatorio        ; llama al procedimiento NumAleatorio
+[ 569]        :                                       
+[ 570]    09D9: FE C4                                 inc ah                   ; incrementa ah
+[ 571]        :                                       
+[ 572]    09DB: 88 24                                 mov [si], ah             ; mueve ese numero aleatorio al vector
+[ 573]        :                                       
+[ 574]    09DD: 46                                    inc si                   ; incrementa si
+[ 575]        :                                       
+[ 576]    09DE: E2 F6                                 loop bucleAleatorio      ; llamada a la etiqueta bucleAleatorio con bucle loop
+[ 577]        :                                       
+[ 578]    09E0:                                       final:                   ; etiqueta final
+[ 579]    09E0: 59                                    pop cx
+[ 580]    09E1: 5E                                    pop si
+[ 581]    09E2: C3                                    ret
+[ 582]        :                                       VectorAleatorio ENDP
+[ 583]        :                                       
+[ 584]        :                                       
+[ 585]        :                                       ;F: Inserta elementos aleatorios en un vector
+[ 586]        :                                       ;E: BL el valor maximo-1 que pueden tomar los numeros aleatorios
+[ 587]        :                                       ;   SI la direccion del vector
+[ 588]        :                                       ;   CX tamano del vector
+[ 589]    09E3:                                       VectorSinRepetir PROC
+[ 590]    09E3: 51                                    push cx
+[ 591]    09E4: 56                                    push si
+[ 592]    09E5: 50                                    push ax
+[ 593]    09E6: 52                                    push dx
+[ 594]    09E7: 57                                    push di
+[ 595]        :                                       
+[ 596]    09E8: 33 C0                                 xor ax, ax
+[ 597]    09EA: 33 D2                                 xor dx, dx
+[ 598]    09EC: 8B FE                                 mov di, si ;para guardar el offset del vector
+[ 599]    09EE: 8A F9                                 mov bh, cl ; para guardar las posiciones
+[ 600]        :                                       
+[ 601]    09F0:                                       repetir:
+[ 602]    09F0: E8 2A FF                              call NumAleatorio  ;genera un numero aleatorio que guarda en ah
+[ 603]        :                                       
+[ 604]    09F3: 8A D4                                 mov dl, ah ;para guardar el numero a insertar
+[ 605]        :                                       
+[ 606]    09F5: 56                                    push si
+[ 607]    09F6: 51                                    push cx
+[ 608]        :                                       
+[ 609]    09F7: 8A CF                                 mov cl, bh
+[ 610]    09F9: 8B F7                                 mov si, di
+[ 611]    09FB: E8 BA FF                              call BusquedaElemento ;en ah el numero a buscar
+[ 612]        :                                       
+[ 613]    09FE: 59                                    pop cx
+[ 614]    09FF: 5E                                    pop si
+[ 615]        :                                       
+[ 616]    0A00: 3C 01                                 cmp al, 1
+[ 617]    0A02: 74 EC                                 je repetir  ;si el elemento esta, hay que pedir otro numero
+[ 618]        :                                       
+[ 619]    0A04: 88 14                                 mov [si], dl  ;si no esta se inserta
+[ 620]    0A06: 46                                    inc si        ;cuando se incrementa aqui, se incrementa para el otro PROC que empieza a comparar en las posiciones no insertadas
+[ 621]    0A07: E2 E7                                 loop repetir
+[ 622]        :                                       
+[ 623]        :                                       
+[ 624]    0A09: 5F                                    pop di
+[ 625]    0A0A: 5A                                    pop dx
+[ 626]    0A0B: 58                                    pop ax
+[ 627]    0A0C: 5E                                    pop si
+[ 628]    0A0D: 59                                    pop cx
+[ 629]        :                                       
+[ 630]    0A0E: C3                                    ret
+[ 631]        :                                       VectorSinRepetir ENDP
+[ 632]        :                                       
+[ 633]        :                                       
+[ 634]        :                                       ;----------------------------------------- Sesion 8 -----------------------------------------
+[ 635]        :                                       
+[ 636]        :                                       
+[ 637]        :                                       ;F: Devuelve en BL un numero entre [0,4] segun la opcion introducida por el usuario
+[ 638]        :                                       ;E: SI contiene la direccion de memoria del vector que contiene la innstruccion
+[ 639]        :                                       ;S: BL la opcion marcada
+[ 640]    0A0F:                                       ValidarOpcion PROC
+[ 641]        :                                       
+[ 642]    0A0F: 50                                    push ax
+[ 643]    0A10: 56                                    push si
+[ 644]    0A11: 57                                    push di
+[ 645]        :                                       
+[ 646]    0A12: 80 7C 02 52                           cmp [si+2], 'R'   ; compara la posicion con 'R'
+[ 647]    0A16: 75 03 E9 9F 00                        je resolverOpcion ; salta en caso que sean iguales
+[ 648]        :                                       
+[ 649]    0A1B: 80 7C 02 53                           cmp [si+2], 'S'   ; compara la posicion con 'S'
+[ 650]    0A1F: 75 03 E9 A0 00                        je salirOpcion    ; salta en caso que sean iguales
+[ 651]        :                                       
+[ 652]    0A24: 80 7C 02 4C                           cmp [si+2], 'L'   ; compara la posicion con 'L'
+[ 653]    0A28: 74 79                                 je laserOpcion    ; salta en caso que sean iguales
+[ 654]        :                                       
+[ 655]    0A2A: 80 7C 02 42                           cmp [si+2], 'B'
+[ 656]    0A2E: 74 41                                 je borrarOpcion
+[ 657]        :                                       
+[ 658]    0A30: 80 7C 02 4D                           cmp [si+2], 'M'   ; compara la posicion con 'M'
+[ 659]    0A34: 74 03 E9 95 00                        jne noValido      ; salta en caso que sean diferentes
+[ 660]        :                                       
+[ 661]    0A39: 80 7C 04 2C                           cmp [si+4], ','   ; compara la posicion con ','
+[ 662]    0A3D: 74 03 E9 8C 00                        jne noValido      ; salta en caso que sean diferentes
+[ 663]        :                                       
+[ 664]        :                                       
+[ 665]    0A42: 80 7C 03 31                           cmp [si+3], '1'   ; compara la fila con '1'
+[ 666]    0A46: 7D 03 E9 83 00                        jl noValido       ; salta en caso de ser mas bajo
+[ 667]        :                                       
+[ 668]    0A4B: 80 7C 03 38                           cmp [si+3], '8'   ; compara la fila con '8'
+[ 669]    0A4F: 7F 7D                                 jg noValido       ; salta en caso de ser mas alto
+[ 670]        :                                       
+[ 671]        :                                       
+[ 672]    0A51: 80 7C 05 31                           cmp [si+5], '1'   ; compara la columna con '1'
+[ 673]    0A55: 7C 77                                 jl noValido       ; salta en caso de ser mas bajo
+[ 674]        :                                       
+[ 675]    0A57: 80 7C 05 38                           cmp [si+5], '8'   ; compara la columna con '8'
+[ 676]    0A5B: 7F 71                                 jg noValido       ; salta en caso de ser mas alto
+[ 677]        :                                       
+[ 678]        :                                       
+[ 679]    0A5D: B3 02                                 mov bl, 2h        ;mueve a bl el 2hs
+[ 680]        :                                       
+[ 681]    0A5F: 8A 44 03                              mov al, [si+3]
+[ 682]    0A62: 2C 30                                 sub al, '0'
+[ 683]    0A64: A2 00 00                              mov filMatrizJuego, al     ; mueve a la variable el valor de la fila a marcar
+[ 684]        :                                       
+[ 685]    0A67: 8A 44 05                              mov al, [si+5]
+[ 686]    0A6A: 2C 30                                 sub al, '0'
+[ 687]    0A6C: A2 01 00                              mov colMatrizJuego, al      ; mueve a la variable el valor de la columna a marcar
+[ 688]        :                                       
+[ 689]        :                                       
+[ 690]    0A6F: EB 5F                                 jmp final2                   ; salta al final2
+[ 691]        :                                       
+[ 692]        :                                       
+[ 693]    0A71:                                       borrarOpcion:
+[ 694]        :                                       
+[ 695]    0A71: 80 7C 04 2C                           cmp [si+4], ','   ; compara la posicion con ','
+[ 696]    0A75: 75 57                                 jne noValido      ; salta en caso que sean diferentes
+[ 697]        :                                       
+[ 698]        :                                       
+[ 699]    0A77: 80 7C 03 31                           cmp [si+3], '1'   ; compara la fila con '1'
+[ 700]    0A7B: 7C 51                                 jl noValido       ; salta en caso de ser mas bajo
+[ 701]        :                                       
+[ 702]    0A7D: 80 7C 03 38                           cmp [si+3], '8'   ; compara la fila con '8'
+[ 703]    0A81: 7F 4B                                 jg noValido       ; salta en caso de ser mas alto
+[ 704]        :                                       
+[ 705]        :                                       
+[ 706]    0A83: 80 7C 05 31                           cmp [si+5], '1'   ; compara la columna con '1'
+[ 707]    0A87: 7C 45                                 jl noValido       ; salta en caso de ser mas bajo
+[ 708]        :                                       
+[ 709]    0A89: 80 7C 05 38                           cmp [si+5], '8'   ; compara la columna con '8'
+[ 710]    0A8D: 7F 3F                                 jg noValido       ; salta en caso de ser mas alto
+[ 711]        :                                       
+[ 712]        :                                       
+[ 713]    0A8F: B3 05                                 mov bl, 5h        ;mueve a bl el 2hs
+[ 714]        :                                       
+[ 715]        :                                       
+[ 716]    0A91: 8A 44 03                              mov al, [si+3]
+[ 717]    0A94: 2C 30                                 sub al, '0'
+[ 718]    0A96: A2 00 00                              mov filMatrizJuego, al     ; mueve a la variable el valor de la fila a borrar
+[ 719]        :                                       
+[ 720]    0A99: 8A 44 05                              mov al, [si+5]
+[ 721]    0A9C: 2C 30                                 sub al, '0'
+[ 722]    0A9E: A2 01 00                              mov colMatrizJuego, al      ; mueve a la variable el valor de la columna a borrar
+[ 723]        :                                       
+[ 724]        :                                       
+[ 725]    0AA1: EB 2D                                 jmp final2
+[ 726]        :                                       
+[ 727]        :                                       
+[ 728]        :                                       
+[ 729]    0AA3:                                       laserOpcion:
+[ 730]        :                                       
+[ 731]        :                                       
+[ 732]    0AA3: 8D 54 03                              lea dx, [si+3]
+[ 733]    0AA6: E8 C7 FD                              call CadenaANumero         ; transforma el numero a cadena
+[ 734]        :                                       
+[ 735]    0AA9: 3D 01 00                              cmp ax, 1
+[ 736]    0AAC: 7C 20                                 jl noValido                ; salta en caso de no estar en los limites
+[ 737]    0AAE: 3D 20 00                              cmp ax, 32
+[ 738]    0AB1: 7F 1B                                 jg noValido
+[ 739]        :                                       
+[ 740]    0AB3: B3 01                                 mov bl, 1h                 ; mueve a bl 1h
+[ 741]    0AB5: A2 81 00                              mov posLaser, al           ; mueve a posLaser al
+[ 742]    0AB8: EB 16                                 jmp final2
+[ 743]        :                                       
+[ 744]        :                                       
+[ 745]    0ABA:                                       resolverOpcion:
+[ 746]        :                                       
+[ 747]    0ABA: 80 7C 03 0D                           cmp [si+3],13                 ; compara que solo haya el caracter 'R'
+[ 748]    0ABE: 75 0E                                 jne noValido
+[ 749]        :                                       
+[ 750]    0AC0: B3 03                                 mov bl,3h                     ; mueve a bl 3h
+[ 751]    0AC2: EB 0C                                 jmp final2                    ; salta al final2 de PROC
+[ 752]        :                                       
+[ 753]    0AC4:                                       salirOpcion:
+[ 754]        :                                       
+[ 755]    0AC4: 80 7C 03 0D                           cmp [si+3],13                ; compara que solo haya el caracter 'S'
+[ 756]    0AC8: 75 04                                 jne noValido
+[ 757]        :                                       
+[ 758]    0ACA: B3 04                                 mov bl, 4h                   ; mueve a bl 4h
+[ 759]    0ACC: EB 02                                 jmp final2
+[ 760]        :                                       ; salta al final2 del PROC
+[ 761]        :                                       
+[ 762]    0ACE:                                       noValido:
+[ 763]        :                                       ; si accede aqui mueve a bl 0h y quiere decir que la cadena introducida no es valida
+[ 764]    0ACE: B3 00                                 mov bl,0h
+[ 765]        :                                       
+[ 766]    0AD0:                                       final2:
+[ 767]        :                                       
+[ 768]    0AD0: 5F                                    pop di
+[ 769]    0AD1: 5E                                    pop si
+[ 770]    0AD2: 58                                    pop ax
+[ 771]        :                                       
+[ 772]    0AD3: C3                                    ret
+[ 773]        :                                       ValidarOpcion ENDP
+[ 774]        :                                       
+[ 775]        :                                       ;----------------------------------------- Sesion 9 -----------------------------------------
+[ 776]        :                                       
+[ 777]        :                                       ;F: Rellena "matrizJuego" con el tipo indicado por "vectorTiposEspejos", en las posiciones
+[ 778]        :                                       ;   que indica "vectorPosEspejos"
+[ 779]        :                                       ;E:  SI direccion de comienzo de "matrizJuego"
+[ 780]        :                                       ;    BX direccion de comienzo de "vectorPosEspejos"
+[ 781]        :                                       ;    DI direccion de comienzo de "vectorTiposEspejos"
+[ 782]        :                                       ;    CX tamano los vectores de posicion y tipos de espejos.
+[ 783]        :                                       ;S: matrizJuego con el tipo de espejos indicado por el vector vectorTiposEspejos,
+[ 784]        :                                       ;   en las posiciones indicadas por el vector vectorPosEspejos
+[ 785]    0AD4:                                       RellenarVector PROC
+[ 786]        :                                       
+[ 787]    0AD4: 50                                    push ax
+[ 788]    0AD5: 53                                    push bx
+[ 789]    0AD6: 57                                    push di
+[ 790]        :                                       
+[ 791]    0AD7:                                       bucle2:             ; etiqueta bucle
+[ 792]    0AD7: 53                                    push bx            ; guarda en la pila en contenido del registro bx
+[ 793]    0AD8: 8A 1F                                 mov bl, [bx]       ; guarda en bl el contenido de la direccion de memoria de bx
+[ 794]    0ADA: 8A 05                                 mov al, [di]       ; guarda en al el contenido de la direccion de memoria de di
+[ 795]        :                                       
+[ 796]    0ADC: 88 00                                 mov [si+bx], al    ; guarda en la direccion de memoria de la direccion si+bx el contenido de al
+[ 797]    0ADE: 5B                                    pop bx             ; recupera el valor inicial de bx
+[ 798]    0ADF: 43                                    inc bx             ; incrementa en uno bx para pasar a la siguiente posicion del vector
+[ 799]    0AE0: 47                                    inc di             ; incrementa en uno di para pasar a la siguiente posicion del vector
+[ 800]        :                                       
+[ 801]    0AE1: E2 F4                                 loop bucle2         ; etiqueta de salto a bucle y decremento de cx (donde se guardaba NUMESPEJOSDEBUG)
+[ 802]        :                                       
+[ 803]    0AE3: 5E                                    pop si
+[ 804]    0AE4: 5B                                    pop bx
+[ 805]    0AE5: 58                                    pop ax
+[ 806]        :                                       
+[ 807]    0AE6: C3                                    ret
+[ 808]        :                                       RellenarVector ENDP
+[ 809]        :                                       
+[ 810]        :                                       
+[ 811]        :                                       ;F: Establece los parametros de entrada para el procedimiento 'RellenarVector' para luego llamarlo
+[ 812]        :                                       ;E:
+[ 813]        :                                       ;S: matrizJuego con el tipo de espejos indicado por el vector vectorTiposEspejos,
+[ 814]        :                                       ;   en las posiciones indicadas por el vector vectorPosEspejos
+[ 815]    0AE7:                                       InicializarMatrizJuegoDebug PROC
+[ 816]        :                                       
+[ 817]    0AE7: 51                                    push cx
+[ 818]    0AE8: 53                                    push bx
+[ 819]    0AE9: 57                                    push di
+[ 820]    0AEA: 56                                    push si
+[ 821]        :                                       
+[ 822]        :                                       
+[ 823]    0AEB: BE 03 00                              lea si,matrizJuego        ; guarda en si la direccion de memoria de inicio del vector matrizJuego
+[ 824]    0AEE: BB 43 00                              lea bx,vectorPosEspejos   ; guarda en bx la direccion de memoria de inicio del vector vectorPosEspejos
+[ 825]    0AF1: BF 57 00                              lea di,vectorTiposEspejos ; guarda en di la direccion de memoria de inicio del vector vectorTiposEspejos
+[ 826]    0AF4: B9 08 00                              mov cx,NUMESPEJOSDEBUG    ; guarda en cx la variable NUMESPEJOSDEBUG
+[ 827]    0AF7: 88 0E 6B 00                           mov NUMESPEJOS, cl        ; guarda el numeros de espejos en numEspejos de cx
+[ 828]        :                                       
+[ 829]    0AFB: E8 D6 FF                              call RellenarVector
+[ 830]        :                                       
+[ 831]    0AFE: 5E                                    pop si
+[ 832]    0AFF: 5F                                    pop di
+[ 833]    0B00: 5B                                    pop bx
+[ 834]    0B01: 59                                    pop cx
+[ 835]    0B02: C3                                    ret
+[ 836]        :                                       InicializarMatrizJuegoDebug ENDP
+[ 837]        :                                       
+[ 838]        :                                       ;**************************************************************************************
+[ 839]        :                                       ;******************** Procedimientos de IU ********************************************
+[ 840]        :                                       ;**************************************************************************************
+[ 841]        :                                       
+[ 842]        :                                       
+[ 843]        :                                       ;**************************************************************************************
+[ 844]        :                                       ;******************** Procedimientos para la logica del juego *************************
+[ 845]        :                                       ;**************************************************************************************
+[ 846]        :                                       
+[ 847]        :                                       
+[ 848]        :                                       ;; 4 + (fila-1) x 2 para colocar el cursor a lo alto
+[ 849]        :                                       ;; 12 + (col-1) x 4 para colocar el cursor a lo ancho
+[ 850]    0B03:                                       MatrizAPantalla PROC
+[ 851]        :                                       
+[ 852]    0B03: 50                                    push ax
+[ 853]    0B04: 51                                    push cx
+[ 854]        :                                       
+[ 855]    0B05: A0 00 00                              mov al, filMatrizJuego
+[ 856]    0B08: FE C8                                 dec al
+[ 857]        :                                       
+[ 858]    0B0A: B9 02 00                              mov cx, 2
+[ 859]        :                                       
+[ 860]    0B0D: F7 E1                                 mul cx
+[ 861]        :                                       
+[ 862]    0B0F: 04 04                                 add al, 4
+[ 863]        :                                       
+[ 864]    0B11: A2 00 00                              mov filMatrizJuego, al
+[ 865]        :                                       
+[ 866]    0B14: A0 01 00                              mov al, colMatrizJuego
+[ 867]    0B17: FE C8                                 dec al
+[ 868]        :                                       
+[ 869]    0B19: B9 04 00                              mov cx, 4
+[ 870]        :                                       
+[ 871]    0B1C: F7 E1                                 mul cx
+[ 872]        :                                       
+[ 873]    0B1E: 04 0C                                 add al, 12
+[ 874]        :                                       
+[ 875]    0B20: A2 01 00                              mov colMatrizJuego, al
+[ 876]        :                                       
+[ 877]    0B23: 59                                    pop cx
+[ 878]    0B24: 58                                    pop ax
+[ 879]        :                                       
+[ 880]    0B25: C3                                    ret
+[ 881]        :                                       MatrizAPantalla ENDP
+[ 882]        :                                       
+[ 883]        :                                       
+[ 884]    0B26:                                       OpcionMarcar PROC
+[ 885]        :                                       
+[ 886]    0B26: 50                                    push ax
+[ 887]    0B27: 53                                    push bx
+[ 888]    0B28: 51                                    push cx
+[ 889]        :                                       
+[ 890]    0B29: E8 68 FE                              call MatrizAVector
+[ 891]        :                                       
+[ 892]    0B2C: 8A 26 02 00                           mov ah, posMatrizJuego
+[ 893]    0B30: BE 6C 00                              lea si, vectorPosEspejosMarcados
+[ 894]    0B33: 33 C9                                 xor cx,cx
+[ 895]    0B35: 8A 0E 6B 00                           mov cl, numEspejos
+[ 896]    0B39: E8 7C FE                              call BusquedaElemento
+[ 897]        :                                       
+[ 898]    0B3C: 3C 01                                 cmp al, 1
+[ 899]    0B3E: 74 2D                                 je finMarcar
+[ 900]        :                                       
+[ 901]    0B40: E8 D8 00                              call InsertarEnVector
+[ 902]        :                                       
+[ 903]    0B43: 8A 26 80 00                           mov ah, NUMESPEJOSMARCADOS
+[ 904]        :                                       
+[ 905]    0B47: 80 3E 80 00 14                        cmp NUMESPEJOSMARCADOS, 20
+[ 906]    0B4C: 74 1F                                 je finMarcar
+[ 907]        :                                       
+[ 908]    0B4E: FE C4                                 inc ah
+[ 909]    0B50: 88 26 80 00                           mov NUMESPEJOSMARCADOS, ah
+[ 910]        :                                       
+[ 911]    0B54: E8 AC FF                              call MatrizAPantalla
+[ 912]        :                                       
+[ 913]    0B57: A0 00 00                              mov al, filMatrizJuego
+[ 914]    0B5A: A2 98 00                              mov fila, al
+[ 915]        :                                       
+[ 916]    0B5D: A0 01 00                              mov al, colMatrizJuego
+[ 917]    0B60: A2 99 00                              mov colum, al
+[ 918]        :                                       
+[ 919]    0B63: E8 9B FD                              call ColocarCursor
+[ 920]        :                                       
+[ 921]    0B66: B0 2A                                 mov al, CARACTMARCADO
+[ 922]    0B68: B3 9B                                 mov bl, COLORMARCAR
+[ 923]        :                                       
+[ 924]    0B6A: E8 84 FD                              call ImprimirCarColor
+[ 925]        :                                       
+[ 926]    0B6D:                                       finMarcar:
+[ 927]    0B6D: 59                                    pop cx
+[ 928]    0B6E: 5B                                    pop bx
+[ 929]    0B6F: 58                                    pop ax
+[ 930]    0B70: C3                                    ret
+[ 931]        :                                       OpcionMarcar ENDP
+[ 932]        :                                       
+[ 933]    0B71:                                       OpcionLaser PROC
+[ 934]        :                                       
+[ 935]    0B71: 80 3E 81 00 09                        cmp posLaser, 9
+[ 936]    0B76: 7C 15                                 jl laserDown
+[ 937]        :                                       
+[ 938]    0B78: 80 3E 81 00 11                        cmp posLaser,17
+[ 939]    0B7D: 7C 15                                 jl laserIzq
+[ 940]        :                                       
+[ 941]    0B7F: 80 3E 81 00 19                        cmp posLaser,25
+[ 942]    0B84: 7C 15                                 jl laserUp
+[ 943]        :                                       
+[ 944]    0B86: C6 06 82 00 01                        mov direcDisparoLaser, 1
+[ 945]    0B8B: EB 13                                 jmp trayectoria
+[ 946]        :                                       
+[ 947]    0B8D:                                       laserDown:
+[ 948]    0B8D: C6 06 82 00 02                        mov direcDisparoLaser, 2
+[ 949]    0B92: EB 0C                                 jmp trayectoria
+[ 950]        :                                       
+[ 951]    0B94:                                       laserIzq:
+[ 952]    0B94: C6 06 82 00 03                        mov direcDisparoLaser, 3
+[ 953]    0B99: EB 05                                 jmp trayectoria
+[ 954]        :                                       
+[ 955]    0B9B:                                       laserUp:
+[ 956]    0B9B: C6 06 82 00 00                        mov direcDisparoLaser, 0
+[ 957]        :                                       
+[ 958]    0BA0:                                       trayectoria:
+[ 959]        :                                       
+[ 960]    0BA0: C3                                    ret
+[ 961]        :                                       OpcionLaser ENDP
+[ 962]        :                                       
+[ 963]        :                                       
+[ 964]        :                                       ;F: Elimina del vector el elemento buscado
+[ 965]        :                                       ;E: SI la direccion del vector
+[ 966]        :                                       ;   AH el elemento a eliminar
+[ 967]        :                                       ;   CX el tamano del vector
+[ 968]        :                                       ;S: vector con elemento eliminado
+[ 969]    0BA1:                                       EliminarElemento PROC
+[ 970]        :                                       
+[ 971]    0BA1: 56                                    push si
+[ 972]    0BA2: 50                                    push ax
+[ 973]    0BA3: 51                                    push cx
+[ 974]        :                                       
+[ 975]    0BA4:                                       bucleEliminar:
+[ 976]    0BA4: 38 24                                 cmp [si], ah
+[ 977]    0BA6: 74 05                                 je encB
+[ 978]    0BA8: 46                                    inc si
+[ 979]    0BA9: E2 F9                                 loop bucleEliminar
+[ 980]    0BAB: EB 03                                 jmp exitEliminar
+[ 981]        :                                       
+[ 982]    0BAD:                                       encB:
+[ 983]    0BAD: C6 04 00                              mov [si], 0
+[ 984]        :                                       
+[ 985]    0BB0:                                       exitEliminar:
+[ 986]    0BB0: 59                                    pop cx
+[ 987]    0BB1: 58                                    pop ax
+[ 988]    0BB2: 5E                                    pop si
+[ 989]    0BB3: C3                                    ret
+[ 990]        :                                       EliminarElemento ENDP
+[ 991]        :                                       
+[ 992]    0BB4:                                       OpcionBorrar PROC
+[ 993]        :                                       
+[ 994]    0BB4: E8 DD FD                              call MatrizAVector
+[ 995]    0BB7: E8 49 FF                              call MatrizAPantalla
+[ 996]        :                                       
+[ 997]    0BBA: A0 00 00                              mov al, filMatrizJuego
+[ 998]    0BBD: A2 98 00                              mov fila, al
+[ 999]        :                                       
+[1000]    0BC0: A0 01 00                              mov al, colMatrizJuego
+[1001]    0BC3: A2 99 00                              mov colum, al
+[1002]        :                                       
+[1003]    0BC6: E8 38 FD                              call ColocarCursor
+[1004]        :                                       
+[1005]    0BC9: B0 2A                                 mov al, CARACTMARCADO
+[1006]    0BCB: B3 00                                 mov bl, COLORBORRAR
+[1007]        :                                       
+[1008]    0BCD: E8 21 FD                              call ImprimirCarColor
+[1009]        :                                       
+[1010]    0BD0: A0 80 00                              mov al, numEspejosMarcados
+[1011]    0BD3: FE C8                                 dec al
+[1012]    0BD5: A2 80 00                              mov numEspejosMarcados,al
+[1013]        :                                       
+[1014]        :                                       
+[1015]    0BD8: 8A 26 02 00                           mov ah, posMatrizJuego
+[1016]    0BDC: BE 6C 00                              lea si, vectorPosEspejosMarcados
+[1017]    0BDF: 33 C9                                 xor cx, cx
+[1018]    0BE1: 8A 0E 6B 00                           mov cl, numEspejos
+[1019]    0BE5: E8 B9 FF                              call EliminarElemento
+[1020]        :                                       
+[1021]        :                                       
+[1022]    0BE8: C3                                    ret
+[1023]        :                                       OpcionBorrar ENDP
+[1024]        :                                       
+[1025]        :                                       
+[1026]    0BE9:                                       OpcionResolver PROC
+[1027]    0BE9: C3                                    ret
+[1028]        :                                       OpcionResolver ENDP
+[1029]        :                                       
+[1030]        :                                       
+[1031]    0BEA:                                       NoModoDebug PROC
+[1032]        :                                       
+[1033]    0BEA: BE 43 00                              lea si, vectorPosEspejos
+[1034]    0BED: BB 40 00                              mov bx, NUMCASILLASJUEGO
+[1035]    0BF0: 33 C9                                 xor cx,cx
+[1036]    0BF2: 8A 0E 6B 00                           mov cl, numEspejos
+[1037]    0BF6: E8 EA FD                              call VectorSinRepetir
+[1038]        :                                       
+[1039]    0BF9: BE 57 00                              lea si, vectorTiposEspejos
+[1040]    0BFC: BB 04 00                              mov bx, NUMTIPOSESPEJOS
+[1041]    0BFF: 33 C9                                 xor cx,cx
+[1042]    0C01: 8A 0E 6B 00                           mov cl, numEspejos
+[1043]    0C05: E8 C7 FD                              call VectorAleatorio
+[1044]        :                                       
+[1045]    0C08: BE 03 00                              lea si, matrizJuego
+[1046]    0C0B: BB 43 00                              lea bx, vectorPosEspejos
+[1047]    0C0E: BF 57 00                              lea di, vectorTiposespejos
+[1048]    0C11: 33 C9                                 xor cx,cx
+[1049]    0C13: 8A 0E 6B 00                           mov cl, numEspejos
+[1050]        :                                       
+[1051]    0C17: E8 BA FE                              call RellenarVector
+[1052]        :                                       
+[1053]    0C1A: C3                                    ret
+[1054]        :                                       NoModoDebug ENDP
+[1055]        :                                       
+[1056]        :                                       
+[1057]        :                                       ;F: Introduce en el vector el elemento seleccionado
+[1058]        :                                       ;E: SI direccion de comienzo de "matrizJuego"
+[1059]        :                                       ;   AH elemento a insertar
+[1060]        :                                       ;   CX tamano del vector.
+[1061]        :                                       ;S: vector con elemento insertardo
+[1062]        :                                       
+[1063]    0C1B:                                       InsertarEnVector PROC
+[1064]        :                                       
+[1065]    0C1B: 56                                    push si
+[1066]    0C1C: 51                                    push cx
+[1067]    0C1D: 50                                    push ax
+[1068]        :                                       
+[1069]    0C1E:                                       bucleVector:
+[1070]        :                                       
+[1071]    0C1E: 80 3C 00                              cmp [si], 0
+[1072]    0C21: 74 05                                 je enc
+[1073]    0C23: 46                                    inc si
+[1074]    0C24: E2 F8                                 loop bucleVector
+[1075]    0C26: EB 02                                 jmp exit
+[1076]        :                                       
+[1077]    0C28:                                       enc:
+[1078]    0C28: 88 24                                 mov [si], ah
+[1079]        :                                       
+[1080]    0C2A:                                       exit:
+[1081]    0C2A: 58                                    pop ax
+[1082]    0C2B: 59                                    pop cx
+[1083]    0C2C: 5E                                    pop si
+[1084]    0C2D: C3                                    ret
+[1085]        :                                       InsertarEnVector ENDP
+[1086]        :                                       
+[1087]        :                                       
+[1088]    0C2E:                                       ElegirModoJuego PROC
+[1089]        :                                       
+[1090]    0C2E: 50                                    push ax
+[1091]        :                                       
+[1092]    0C2F:                                       pedirCaracter:
+[1093]        :                                       
+[1094]    0C2F: E8 FF FC                              call OcultarCursor         ;ocultamos cursor
+[1095]    0C32: E8 F7 FC                              call LeerTeclaSinEco       ; llemos tecla si eco en pantalla
+[1096]        :                                       
+[1097]    0C35: 3C 53                                 cmp al, 'S'               ; vemos si es S
+[1098]    0C37: 74 0C                                 je debug               ; si no es ninguna saltamos y pedimos otro caracter
+[1099]        :                                       
+[1100]    0C39: 3C 4E                                 cmp al, 'N'                ; vemos si es N
+[1101]    0C3B: 75 F2                                 jne pedirCaracter
+[1102]        :                                       
+[1103]    0C3D: E8 22 FD                              call BorrarLineaMsj       ; Borra la linea de pedir modo debug
+[1104]    0C40: E8 A7 FF                              call NoModoDebug
+[1105]    0C43: EB 06                                 jmp gameStart
+[1106]        :                                       
+[1107]    0C45:                                       debug:
+[1108]        :                                       
+[1109]    0C45: E8 1A FD                              call BorrarLineaMsj       ; Borra la linea de pedir modo debug
+[1110]    0C48: E8 9C FE                              call InicializarMatrizJuegoDebug ; si es modo debug iniciamos la matriz en modo debug
+[1111]        :                                       
+[1112]    0C4B:                                       gameStart:
+[1113]    0C4B: 58                                    pop ax
+[1114]    0C4C: C3                                    ret
+[1115]        :                                       ElegirModoJuego ENDP
+[1116]        :                                       
+[1117]        :                                       
+[1118]    0C4D:                                       GAME PROC
+[1119]        :                                       
+[1120]        :                                       
+[1121]    0C4D: 52                                    push dx
+[1122]    0C4E: 56                                    push si
+[1123]    0C4F: 53                                    push bx
+[1124]        :                                       
+[1125]        :                                       
+[1126]    0C50:                                       juego:                      ; empieza el juego
+[1127]        :                                       
+[1128]    0C50: E8 28 FD                              call BorrarEntradaUsuario
+[1129]        :                                       
+[1130]    0C53: C6 06 98 00 17                        mov fila,INIYMSJ           ; colocamos el cursor de nuevo para imprimir el mensaje
+[1131]    0C58: C6 06 99 00 03                        mov colum, INIXMSJ
+[1132]    0C5D: E8 A1 FC                              call ColocarCursor
+[1133]        :                                       
+[1134]    0C60: BA FE 06                              lea dx, msjOpcion           ; imprimimos el mensaje
+[1135]    0C63: E8 84 FC                              call Imprimir
+[1136]        :                                       
+[1137]    0C66: C6 06 98 00 17                        mov fila,INIYPEDIR          ; ponemos el cursor para pedir al usuario datos
+[1138]    0C6B: C6 06 99 00 36                        mov colum, INIXPEDIR
+[1139]    0C70: E8 8E FC                              call ColocarCursor
+[1140]        :                                       
+[1141]    0C73: E8 C8 FC                              call MostrarCursor          ; mostramos el cursor
+[1142]        :                                       
+[1143]    0C76: C6 06 9A 00 05                        mov CadenaE[0], 5           ; leemos la cadena donde vamos a almacenar los datos
+[1144]    0C7B: BA 9A 00                              lea dx, CadenaE
+[1145]    0C7E: E8 95 FC                              call LeerCadena
+[1146]        :                                       
+[1147]    0C81: BE 9A 00                              lea si, CadenaE
+[1148]    0C84: E8 88 FD                              call ValidarOpcion           ; vemos si la opcion introducida es correcta
+[1149]        :                                       
+[1150]    0C87: 80 FB 00                              cmp bl, 0                 ; si no es correcta vuelvo a game
+[1151]    0C8A: 74 C4                                 je juego
+[1152]        :                                       
+[1153]    0C8C: 80 FB 01                              cmp bl, 1
+[1154]    0C8F: 74 1E                                 je laser
+[1155]        :                                       
+[1156]    0C91: 80 FB 02                              cmp bl, 2
+[1157]    0C94: 74 1E                                 je marcar
+[1158]        :                                       
+[1159]        :                                       
+[1160]        :                                       ;   cmp bl, 3
+[1161]        :                                       ;   je resolver
+[1162]        :                                       
+[1163]    0C96: 80 FB 05                              cmp bl, 5
+[1164]    0C99: 74 08                                 je borrar
+[1165]        :                                       
+[1166]    0C9B: 80 FB 04                              cmp bl, 4
+[1167]    0C9E: E8 C1 FC                              call BorrarLineaMsj
+[1168]    0CA1: EB 16                                 jmp EndGame
+[1169]        :                                       
+[1170]        :                                       
+[1171]    0CA3:                                       borrar:
+[1172]        :                                       
+[1173]    0CA3: 80 3E 80 00 00                        cmp numEspejosMarcados, 0
+[1174]    0CA8: 74 A6                                 je juego
+[1175]        :                                       
+[1176]    0CAA: E8 07 FF                              call OpcionBorrar
+[1177]    0CAD: EB A1                                 jmp juego
+[1178]        :                                       
+[1179]    0CAF:                                       laser:
+[1180]        :                                       
+[1181]    0CAF: E8 BF FE                              call OpcionLaser
+[1182]    0CB2: EB 9C                                 jmp juego
+[1183]        :                                       
+[1184]    0CB4:                                       marcar:
+[1185]        :                                       
+[1186]    0CB4: E8 6F FE                              call OpcionMarcar
+[1187]    0CB7: EB 97                                 jmp juego
+[1188]        :                                       
+[1189]        :                                       
+[1190]    0CB9:                                       EndGame:                ; fin del juego
+[1191]        :                                       
+[1192]    0CB9: 5B                                    pop bx
+[1193]    0CBA: 5E                                    pop si
+[1194]    0CBB: 5A                                    pop dx
+[1195]        :                                       
+[1196]    0CBC: C3                                    ret
+[1197]        :                                       GAME ENDP
+[1198]        :                                       
+[1199]        :                                       
+[1200]        :                                       
+[1201]        :                                       
+[1202]        :                                       
+[1203]        :                                       ;*************************************************************************************
+[1204]        :                                       ;************************** Programa Principal ***************************************
+[1205]        :                                       ;*************************************************************************************
+[1206]        :                                       
+[1207]        :                                       
+[1208]    0CBD:                                       start:
+[1209]    0CBD: B8 00 00                              mov ax, data
+[1210]    0CC0: 8E D8                                 mov ds, ax
+[1211]        :                                       
+[1212]    0CC2: BA A1 00                              lea dx, tablero   ;imprimimos el tablero
+[1213]    0CC5: E8 22 FC                              call Imprimir
+[1214]        :                                       
+[1215]    0CC8: C6 06 98 00 17                        mov fila, INIYMSJ      ;movemos el cursor a la fila y a la columna para imprimir mensaje
+[1216]    0CCD: C6 06 99 00 03                        mov colum, INIXMSJ
+[1217]    0CD2: E8 2C FC                              call ColocarCursor
+[1218]        :                                       
+[1219]        :                                       
+[1220]    0CD5: BA D3 06                              lea dx,msjDebug        ;imprimimos el mensaje
+[1221]    0CD8: E8 0F FC                              call Imprimir
+[1222]        :                                       
+[1223]    0CDB: E8 50 FF                              call ElegirModoJuego
+[1224]    0CDE: E8 6C FF                              call GAME
+[1225]        :                                       
+[1226]    0CE1: B4 4C                                 mov ah, 4ch
+[1227]    0CE3: CD 21                                 int 21h
+[1228]        :                                       
+[1229]        :                                       code ends
+[1230]        :                                       END Start
+[1231]        :                                       
+[1232]        :                                       
+[1233]        :                                       
+[1234]        :                                       ;************************************COMENTARIOS**********************************
+[1235]        :                                       ;; 4 + (fila-1) x 2 para colocar el cursor a lo alto
+[1236]        :                                       ;; 12 + (col-1) x 4 para colocar el cursor a lo ancho
+[1237]        :                                       
+[1238]        :                                       ;     para el marcar hay que hacer un nuevo procedimiento para calcular la posicion de del cursor para luego imprimir caracter establecido por las variables
+[1239]        :                                       ;     si M1,2 entonces fila = 0 y col = 1
+[1240]        :                                       
+[1241]        :                                       
+[1242]        :                                       ; si el laser esta entre [1 - 8] ----> 12 + (col-1) x 4 && (fila+3)   +2 para comparar
+[1243]        :                                       ; si el laser esta entre [9 - 16] ---> (col+39) && 4 + (fila-1) x 2    +4 para comparar
+[1244]        :                                       ; si el laser esta entre [17 - 24] --> 12 + (col-1) && (fila+17)       +2 para comparar
+[1245]        :                                       ; si el laser esta entre [25 - 32] --> (col+11) && 4 + (fila-1) x 2   +4 para comparar
+[1246]        :                                       
+[1247]        :                                       ;******* USAR ESTAS EQU *********
+[1248]        :                                       ;    FILLASERARR EQU 2
+[1249]        :                                       ;    FILLASERABJ EQU 20
+[1250]        :                                       ;    COLLASERIZQ EQU 7
+[1251]        :                                       ;    COLLASERDCH EQU 45
+[1252]        :                                       ;    direcDisparoLaser ?
+[1253]        :                                       
+[1254]        :                                       
+[1255]        :                                       
+[1256]        :                                       ;para saber si hemos terminado NUMCOLFILJUEGO - (fila || col) y
+[1257]        :                                       ;si hemos acabado tenemos que ver si a acabado en fila +4 para poner la posicion del laser o en col + 2
+[1258]        :                                       ;
+[1259]        :                                       
+[1260]        :                                       ;    para el laser tienes que guardar en posLaser caundo comprobamos que es L y despues ir viendo si hay espejos
+[1261]        :                                       ;    y si hay espejo utilizar variables de cambio de trayectoria, si se sale del tablero acabar poniendo donde llege el numero del laser
+[1262]        :                                       
+[1263]        :                                       
+[1264]        :                                       
+[1265]        :                                       
+ 
+===================================================================================================
+ 
+EXE HEADER - bytes from 0000 to 01FF inclusive.
+
+0000: 4D      -   exe signature (M)
+0001: 5A      -   exe signature (Z)
+0002: E5      -   bytes on last page (l.byte)
+0003: 00      -   bytes on last page (h.byte)
+0004: 08      -   512 byte pages in file (l.byte)
+0005: 00      -   512 byte pages in file (h.byte)
+0006: 01      -   relocations (l.byte)
+0007: 00      -   relocations (h.byte)
+0008: 20      -   paragraphs in header (l.byte)
+0009: 00      -   paragraphs in header (h.byte)
+000A: 00      -   minimum memory (l.byte)
+000B: 00      -   minimum memory (h.byte)
+000C: FF      -   maximum memory (l.byte)
+000D: FF      -   maximum memory (h.byte)
+000E: 77      -   SS - stack segment (l.byte)
+000F: 00      -   SS - stack segment (h.byte)
+0010: 00      -   SP - stack pointer (l.byte)
+0011: 01      -   SP - stack pointer (h.byte)
+0012: E2      -   check sum (l.byte)
+0013: EC      -   check sum (h.byte)
+0014: 4D      -   IP - instruction pointer (l.byte)
+0015: 04      -   IP - instruction pointer (h.byte)
+0016: 87      -   CS - code segment (l.byte)
+0017: 00      -   CS - code segment (h.byte)
+0018: 1E      -   relocation table adress (l.byte)
+0019: 00      -   relocation table adress (h.byte)
+001A: 00      -   overlay number (l.byte)
+001B: 00      -   overlay number (h.byte)
+001C: 01      -   signature (l.byte)
+001D: 00      -   signature (h.byte)
+001E: 4E      -   relocation table - offset inside segment (l.byte)
+001F: 04      -   relocation table - offset inside segment (h.byte)
+0020: 87      -   relocation table - segment anchor (l.byte)
+0021: 00      -   relocation table - segment anchor (h.byte)
+0022 to 01FF  -   reserved relocation area  (00) 
+
+
+
+
+===================================================================================================

@@ -1,0 +1,471 @@
+EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
+ 
+plantilla_base.exe_ -- emu8086 assembler version: 4.08  
+ 
+[ 21/05/2019  --  21:35:25 ] 
+ 
+===================================================================================================
+[LINE]     LOC: MACHINE CODE                          SOURCE
+===================================================================================================
+ 
+[   1]        :                                       data segment
+[   2]        :                                       
+[   3]    0000: 0A 0D 24                              saltoLinea db  10, 13, "$"
+[   4]    0003: 00 00 00 00 00 00 00 00 00 00         vector1 db 10 dup(0)
+[   5]    000D: 00 00 00 00 00 00 00 00 00 00         vector2 db 10 dup(0)
+[   6]    0017: 00                                    cadenaE db ?
+[   7]    0018: 49 6E 74 72 6F 64 75 63 65 20 65 6C   frase1 db "Introduce el numero de elementos del vector:$"
+                20 6E 75 6D 65 72 6F 20 64 65 20 65 
+                6C 65 6D 65 6E 74 6F 73 20 64 65 6C 
+                20 76 65 63 74 6F 72 3A 24          
+[   8]    0045: 49 6E 74 72 6F 64 75 63 65 20 65 6C   frase2 db "Introduce el indice de valores a mostrar:$"
+                20 69 6E 64 69 63 65 20 64 65 20 76 
+                61 6C 6F 72 65 73 20 61 20 6D 6F 73 
+                74 72 61 72 3A 24                   
+[   9]    006F: 52 65 73 75 6C 74 61 64 6F 3A 24      resultado db "Resultado:$"
+[  10]    007A: 45 52 52 4F 52 24                     error db "ERROR$"
+[  11]    0080: 20 24                                 espacio db " $"
+[  12]    0082: 00                                    n db ?
+[  13]    0083: 00                                    a db ?
+[  14]    0084: 00                                    b db ?
+[  15]        :                                       
+[  16]        :                                       
+[  17]        :                                       ends
+[  18]        :                                       
+[  19]        :                                       stack segment
+[  20]        :                                       
+[  21]    0090: 00 00 00 00 00 00 00 00 00 00 00 00   dw 128 DUP(0)
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00                         
+[  22]        :                                       
+[  23]        :                                       ends
+[  24]        :                                       
+[  25]        :                                       
+[  26]        :                                       code segment
+[  27]        :                                       
+[  28]        :                                       ;Imprime una cadena por pantalla
+[  29]        :                                       ;E: DX contiene la direccion de la cadena a imprimir
+[  30]    0190:                                       Imprimir PROC
+[  31]    0190: 50                                    push ax
+[  32]        :                                       
+[  33]    0191: B4 09                                 mov ah, 9
+[  34]    0193: CD 21                                 int 21h
+[  35]        :                                       
+[  36]    0195: 58                                    pop ax
+[  37]    0196: C3                                    ret
+[  38]        :                                       Imprimir ENDP
+[  39]        :                                       
+[  40]        :                                       ;Lee una cadena por teclado
+[  41]        :                                       ;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+[  42]        :                                       ;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+[  43]    0197:                                       LeerCadena PROC
+[  44]    0197: 50                                    push ax
+[  45]        :                                       
+[  46]    0198: B4 0A                                 mov ah, 0ah
+[  47]    019A: CD 21                                 int 21h
+[  48]        :                                       
+[  49]    019C: 58                                    pop ax
+[  50]    019D: C3                                    ret
+[  51]        :                                       LeerCadena ENDP
+[  52]        :                                       
+[  53]        :                                       ;Convierte una cadena de caracteres a un numero entero
+[  54]        :                                       ;E: DX contiene la direccion de la cadena a convertir (terminada en 13 o '$')
+[  55]        :                                       ;S: AX contiene el resultado de la conversion
+[  56]    019E:                                       CadenaANumero PROC
+[  57]    019E: 53                                    push bx
+[  58]    019F: 51                                    push cx
+[  59]    01A0: 52                                    push dx ; cambia con MUL de 16bits
+[  60]    01A1: 56                                    push si
+[  61]    01A2: 57                                    push di
+[  62]        :                                       
+[  63]    01A3: 8B F2                                 mov si, dx
+[  64]    01A5: 33 C0                                 xor ax, ax
+[  65]    01A7: BB 0A 00                              mov bx, 10
+[  66]        :                                       
+[  67]    01AA: 80 3C 2D                              cmp [si], '-'
+[  68]    01AD: 75 03                                 jne BCadNum
+[  69]        :                                       
+[  70]    01AF: 8B FE                                 mov di, si  ;Ajustes si viene un '-' como primer caracter
+[  71]    01B1: 46                                    inc si
+[  72]        :                                       
+[  73]    01B2:                                       BCadNum:
+[  74]    01B2: 8A 0C                                 mov cl, [si]          ;Controles de fin
+[  75]    01B4: 80 F9 0D                              cmp cl, 13
+[  76]    01B7: 74 11                                 je compruebaNeg
+[  77]    01B9: 80 F9 24                              cmp cl, '$'
+[  78]    01BC: 74 0C                                 je compruebaNeg
+[  79]        :                                       
+[  80]    01BE: F7 E3                                 mul bx
+[  81]    01C0: 80 E9 30                              sub cl, '0'
+[  82]    01C3: 32 ED                                 xor ch, ch
+[  83]    01C5: 03 C1                                 add ax, cx
+[  84]    01C7: 46                                    inc si
+[  85]    01C8: EB E8                                 jmp BCadNum
+[  86]        :                                       
+[  87]    01CA:                                       compruebaNeg:
+[  88]    01CA: 80 3D 2D                              cmp [di], '-'
+[  89]    01CD: 75 02                                 jne finCadenaANumero
+[  90]    01CF: F7 D8                                 neg ax
+[  91]        :                                       
+[  92]    01D1:                                       finCadenaANumero:
+[  93]    01D1: 5F                                    pop di
+[  94]    01D2: 5E                                    pop si
+[  95]    01D3: 5A                                    pop dx
+[  96]    01D4: 59                                    pop cx
+[  97]    01D5: 5B                                    pop bx
+[  98]    01D6: C3                                    ret
+[  99]        :                                       CadenaANumero ENDP
+[ 100]        :                                       
+[ 101]        :                                       ;Convierte un numero entero a una cadena de caracteres terminada en $
+[ 102]        :                                       ;E: AX contiene el numero a convertir
+[ 103]        :                                       ;E: DX contiene la direccion de la cadena donde almacena la cadena resultado
+[ 104]    01D7:                                       NumeroACadena PROC
+[ 105]    01D7: 50                                    push ax
+[ 106]    01D8: 53                                    push bx
+[ 107]    01D9: 51                                    push cx
+[ 108]    01DA: 52                                    push dx
+[ 109]    01DB: 57                                    push di
+[ 110]        :                                       
+[ 111]    01DC: BB 0A 00                              mov bx, 10
+[ 112]    01DF: 8B FA                                 mov di, dx
+[ 113]        :                                       
+[ 114]    01E1: 33 C9                                 xor cx, cx
+[ 115]        :                                       
+[ 116]    01E3: 3D 00 00                              cmp ax, 0
+[ 117]    01E6: 7D 06                                 jge BNumCad
+[ 118]        :                                       
+[ 119]    01E8: C6 05 2D                              mov [di], '-'
+[ 120]    01EB: 47                                    inc di
+[ 121]    01EC: F7 D8                                 neg ax
+[ 122]        :                                       
+[ 123]    01EE:                                       BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+[ 124]    01EE: 33 D2                                 xor dx, dx
+[ 125]    01F0: F7 F3                                 div bx
+[ 126]    01F2: 80 C2 30                              add dl, '0'
+[ 127]    01F5: 52                                    push dx
+[ 128]    01F6: 41                                    inc cx
+[ 129]    01F7: 3D 00 00                              cmp ax, 0
+[ 130]    01FA: 75 F2                                 jne BNumCad
+[ 131]        :                                       
+[ 132]    01FC:                                       BInvertir:      ;Bucle para invertir los restos
+[ 133]    01FC: 8F 05                                 pop [di]
+[ 134]    01FE: 47                                    inc di
+[ 135]    01FF: E2 FB                                 loop BInvertir
+[ 136]        :                                       
+[ 137]    0201: C6 05 24                              mov [di], '$'
+[ 138]        :                                       
+[ 139]    0204: 5F                                    pop di
+[ 140]    0205: 5A                                    pop dx
+[ 141]    0206: 59                                    pop cx
+[ 142]    0207: 5B                                    pop bx
+[ 143]    0208: 58                                    pop ax
+[ 144]    0209: C3                                    ret
+[ 145]        :                                       NumeroACadena ENDP
+[ 146]        :                                       
+[ 147]        :                                       
+[ 148]    020A:                                       primero PROC
+[ 149]        :                                       
+[ 150]        :                                       
+[ 151]    020A: 52                                    push dx
+[ 152]    020B: 51                                    push cx
+[ 153]    020C: 53                                    push bx
+[ 154]    020D: 50                                    push ax
+[ 155]    020E: 56                                    push si
+[ 156]        :                                       
+[ 157]        :                                       
+[ 158]    020F:                                       pedir:
+[ 159]    020F: BA 18 00                              lea dx, frase1
+[ 160]    0212: E8 7B FF                              call Imprimir
+[ 161]        :                                       
+[ 162]    0215: C6 06 17 00 03                        mov cadenaE[0], 3
+[ 163]    021A: BA 17 00                              lea dx, cadenaE
+[ 164]    021D: E8 77 FF                              call LeerCadena
+[ 165]        :                                       
+[ 166]    0220: BA 19 00                              lea dx, cadenaE[2]
+[ 167]    0223: E8 78 FF                              call CadenaANumero
+[ 168]        :                                       
+[ 169]    0226: 3C 05                                 cmp al, 5
+[ 170]    0228: 7C 0C                                 jl errorN
+[ 171]    022A: 3C 0A                                 cmp al, 10
+[ 172]    022C: 7F 08                                 jg errorN
+[ 173]        :                                       
+[ 174]    022E: BA 00 00                              lea dx, saltoLinea
+[ 175]    0231: E8 5C FF                              call Imprimir
+[ 176]    0234: EB 0E                                 jmp bueno
+[ 177]        :                                       
+[ 178]    0236:                                       errorN:
+[ 179]    0236: BA 7A 00                              lea dx, error
+[ 180]    0239: E8 54 FF                              call Imprimir
+[ 181]        :                                       
+[ 182]    023C: BA 00 00                              lea dx, saltoLinea
+[ 183]    023F: E8 4E FF                              call Imprimir
+[ 184]    0242: EB CB                                 jmp pedir
+[ 185]        :                                       
+[ 186]    0244:                                       bueno:
+[ 187]    0244: A2 82 00                              mov n, al
+[ 188]        :                                       
+[ 189]    0247: 33 C9                                 xor cx,cx
+[ 190]    0249: 8A 0E 82 00                           mov cl, n
+[ 191]    024D: 33 DB                                 xor bx, bx
+[ 192]    024F: 33 C0                                 xor ax,ax
+[ 193]    0251: BE 03 00                              lea si, vector1
+[ 194]        :                                       
+[ 195]    0254:                                       bucle:
+[ 196]        :                                       
+[ 197]    0254:                                       otro:
+[ 198]    0254: C6 06 17 00 03                        mov cadenaE[0], 3
+[ 199]    0259: BA 17 00                              lea dx, cadenaE
+[ 200]    025C: E8 38 FF                              call LeerCadena
+[ 201]        :                                       
+[ 202]    025F: BA 19 00                              lea dx, cadenaE[2]
+[ 203]    0262: E8 39 FF                              call CadenaANumero
+[ 204]        :                                       
+[ 205]    0265: 51                                    push cx
+[ 206]        :                                       
+[ 207]    0266: BA 00 00                              lea dx, saltoLinea
+[ 208]    0269: E8 24 FF                              call Imprimir
+[ 209]        :                                       
+[ 210]    026C: 83 FB 00                              cmp bx, 0
+[ 211]    026F: 74 07                                 je introducir
+[ 212]        :                                       
+[ 213]    0271: 8B 48 FF                              mov cx, [si+bx-1]
+[ 214]        :                                       
+[ 215]    0274: 3A C8                                 cmp cl, al
+[ 216]    0276: 7D DC                                 jge otro
+[ 217]        :                                       
+[ 218]    0278:                                       introducir:
+[ 219]    0278: 88 00                                 mov [si+bx], al
+[ 220]    027A: 43                                    inc bx
+[ 221]    027B: 59                                    pop cx
+[ 222]        :                                       
+[ 223]    027C: E2 D6                                 loop bucle
+[ 224]        :                                       
+[ 225]        :                                       
+[ 226]    027E: 5E                                    pop si
+[ 227]    027F: 58                                    pop ax
+[ 228]    0280: 5B                                    pop bx
+[ 229]    0281: 59                                    pop cx
+[ 230]    0282: 5A                                    pop dx
+[ 231]        :                                       
+[ 232]    0283: C3                                    ret
+[ 233]        :                                       primero ENDP
+[ 234]        :                                       
+[ 235]        :                                       
+[ 236]    0284:                                       segundo PROC
+[ 237]        :                                       
+[ 238]    0284: 52                                    push dx
+[ 239]    0285: 50                                    push ax
+[ 240]    0286: 51                                    push cx
+[ 241]        :                                       
+[ 242]        :                                       
+[ 243]    0287:                                       noa:
+[ 244]        :                                       
+[ 245]    0287: BA 45 00                              lea dx, frase2
+[ 246]    028A: E8 03 FF                              call Imprimir
+[ 247]        :                                       
+[ 248]    028D: C6 06 17 00 03                        mov cadenaE[0], 3
+[ 249]    0292: BA 17 00                              lea dx, cadenaE
+[ 250]    0295: E8 FF FE                              call LeerCadena
+[ 251]        :                                       
+[ 252]    0298: BA 19 00                              lea dx, cadenaE[2]
+[ 253]    029B: E8 00 FF                              call CadenaANumero
+[ 254]        :                                       
+[ 255]    029E: BA 00 00                              lea dx, saltoLinea
+[ 256]    02A1: E8 EC FE                              call Imprimir
+[ 257]        :                                       
+[ 258]    02A4: 3C 00                                 cmp al, 0
+[ 259]    02A6: 7C DF                                 jl noa
+[ 260]    02A8: 8A 0E 82 00                           mov cl, n
+[ 261]    02AC: FE C9                                 dec cl
+[ 262]    02AE: 3A C8                                 cmp cl, al
+[ 263]    02B0: 7C D5                                 jl noa
+[ 264]        :                                       
+[ 265]    02B2: A2 83 00                              mov a, al
+[ 266]        :                                       
+[ 267]    02B5: BA 45 00                              lea dx, frase2
+[ 268]    02B8: E8 D5 FE                              call Imprimir
+[ 269]        :                                       
+[ 270]    02BB: C6 06 17 00 03                        mov cadenaE[0], 3
+[ 271]    02C0: BA 17 00                              lea dx, cadenaE
+[ 272]    02C3: E8 D1 FE                              call LeerCadena
+[ 273]        :                                       
+[ 274]    02C6: BA 19 00                              lea dx, cadenaE[2]
+[ 275]    02C9: E8 D2 FE                              call CadenaANumero
+[ 276]        :                                       
+[ 277]    02CC: BA 00 00                              lea dx, saltoLinea
+[ 278]    02CF: E8 BE FE                              call Imprimir
+[ 279]        :                                       
+[ 280]    02D2: 3C 00                                 cmp al, 0
+[ 281]    02D4: 7C B1                                 jl noa
+[ 282]    02D6: 8A 0E 82 00                           mov cl, n
+[ 283]    02DA: FE C9                                 dec cl
+[ 284]    02DC: 3A C8                                 cmp cl, al
+[ 285]    02DE: 7C A7                                 jl noa
+[ 286]        :                                       
+[ 287]    02E0: A2 84 00                              mov b, al
+[ 288]        :                                       
+[ 289]    02E3: 59                                    pop cx
+[ 290]    02E4: 58                                    pop ax
+[ 291]    02E5: 5A                                    pop dx
+[ 292]        :                                       
+[ 293]    02E6: C3                                    ret
+[ 294]        :                                       segundo ENDP
+[ 295]        :                                       
+[ 296]        :                                       
+[ 297]    02E7:                                       tercero PROC
+[ 298]        :                                       
+[ 299]    02E7: 57                                    push di
+[ 300]    02E8: 56                                    push si
+[ 301]    02E9: 53                                    push bx
+[ 302]    02EA: 51                                    push cx
+[ 303]    02EB: 50                                    push ax
+[ 304]        :                                       
+[ 305]    02EC: BF 03 00                              lea di, vector1
+[ 306]    02EF: BE 0D 00                              lea si, vector2
+[ 307]    02F2: 33 DB                                 xor bx, bx
+[ 308]    02F4: 8A 1E 83 00                           mov bl, a
+[ 309]        :                                       
+[ 310]    02F8: 33 C9                                 xor cx, cx
+[ 311]    02FA: 8A 0E 84 00                           mov cl, b
+[ 312]    02FE: 2A 0E 83 00                           sub cl, a
+[ 313]        :                                       
+[ 314]    0302: 83 F9 00                              cmp cx, 0
+[ 315]    0305: 7E 08                                 jle saltar
+[ 316]        :                                       
+[ 317]    0307:                                       bucleRellenar:
+[ 318]    0307: 8B 01                                 mov ax, [di+bx]
+[ 319]    0309: 89 04                                 mov [si], ax
+[ 320]    030B: 46                                    inc si
+[ 321]    030C: 43                                    inc bx
+[ 322]    030D: E2 F8                                 loop bucleRellenar
+[ 323]        :                                       
+[ 324]    030F:                                       saltar:
+[ 325]    030F: 58                                    pop ax
+[ 326]    0310: 59                                    pop cx
+[ 327]    0311: 5B                                    pop bx
+[ 328]    0312: 5E                                    pop si
+[ 329]    0313: 5E                                    pop si
+[ 330]    0314: C3                                    ret
+[ 331]        :                                       tercero ENDP
+[ 332]        :                                       
+[ 333]    0315:                                       cuarto PROC
+[ 334]        :                                       
+[ 335]    0315: 56                                    push si
+[ 336]    0316: 51                                    push cx
+[ 337]    0317: 50                                    push ax
+[ 338]        :                                       
+[ 339]    0318: BE 0D 00                              lea si, vector2
+[ 340]    031B: 33 C9                                 xor cx, cx
+[ 341]    031D: 8A 0E 84 00                           mov cl, b
+[ 342]    0321: 2A 0E 83 00                           sub cl, a
+[ 343]    0325: FE C1                                 inc cl
+[ 344]    0327: 33 C0                                 xor ax, ax
+[ 345]        :                                       
+[ 346]    0329: BA 6F 00                              lea dx, resultado
+[ 347]    032C: E8 61 FE                              call Imprimir
+[ 348]        :                                       
+[ 349]    032F:                                       bucleMostrar:
+[ 350]    032F: 8A 04                                 mov al, [si]
+[ 351]    0331: 46                                    inc si
+[ 352]        :                                       
+[ 353]    0332: BA 17 00                              lea dx, cadenaE
+[ 354]    0335: E8 9F FE                              call NumeroACadena
+[ 355]    0338: E8 55 FE                              call Imprimir
+[ 356]        :                                       
+[ 357]    033B: BA 80 00                              lea dx, espacio
+[ 358]    033E: E8 4F FE                              call Imprimir
+[ 359]    0341: E2 EC                                 loop bucleMostrar
+[ 360]        :                                       
+[ 361]    0343: 58                                    pop ax
+[ 362]    0344: 59                                    pop cx
+[ 363]    0345: 5E                                    pop si
+[ 364]        :                                       
+[ 365]        :                                       
+[ 366]        :                                       
+[ 367]    0346: C3                                    ret
+[ 368]        :                                       cuarto ENDP
+[ 369]        :                                       
+[ 370]        :                                       
+[ 371]    0347:                                       start:
+[ 372]    0347: B8 00 00                              mov ax, data
+[ 373]    034A: 8E D8                                 mov ds, ax
+[ 374]        :                                       
+[ 375]        :                                       
+[ 376]    034C: E8 BB FE                              call primero
+[ 377]    034F: E8 32 FF                              call segundo
+[ 378]    0352: E8 92 FF                              call tercero
+[ 379]    0355: E8 BD FF                              call cuarto
+[ 380]        :                                       
+[ 381]    0358: B8 00 4C                              mov ax, 4c00h
+[ 382]    035B: CD 21                                 int 21h
+[ 383]        :                                       
+[ 384]        :                                       
+[ 385]        :                                       ends
+[ 386]        :                                       
+[ 387]        :                                       end start
+[ 388]        :                                       
+[ 389]        :                                       
+ 
+===================================================================================================
+ 
+EXE HEADER - bytes from 0000 to 01FF inclusive.
+
+0000: 4D      -   exe signature (M)
+0001: 5A      -   exe signature (Z)
+0002: 5D      -   bytes on last page (l.byte)
+0003: 01      -   bytes on last page (h.byte)
+0004: 03      -   512 byte pages in file (l.byte)
+0005: 00      -   512 byte pages in file (h.byte)
+0006: 01      -   relocations (l.byte)
+0007: 00      -   relocations (h.byte)
+0008: 20      -   paragraphs in header (l.byte)
+0009: 00      -   paragraphs in header (h.byte)
+000A: 00      -   minimum memory (l.byte)
+000B: 00      -   minimum memory (h.byte)
+000C: FF      -   maximum memory (l.byte)
+000D: FF      -   maximum memory (h.byte)
+000E: 09      -   SS - stack segment (l.byte)
+000F: 00      -   SS - stack segment (h.byte)
+0010: 00      -   SP - stack pointer (l.byte)
+0011: 01      -   SP - stack pointer (h.byte)
+0012: 19      -   check sum (l.byte)
+0013: 47      -   check sum (h.byte)
+0014: B7      -   IP - instruction pointer (l.byte)
+0015: 01      -   IP - instruction pointer (h.byte)
+0016: 19      -   CS - code segment (l.byte)
+0017: 00      -   CS - code segment (h.byte)
+0018: 1E      -   relocation table adress (l.byte)
+0019: 00      -   relocation table adress (h.byte)
+001A: 00      -   overlay number (l.byte)
+001B: 00      -   overlay number (h.byte)
+001C: 01      -   signature (l.byte)
+001D: 00      -   signature (h.byte)
+001E: B8      -   relocation table - offset inside segment (l.byte)
+001F: 01      -   relocation table - offset inside segment (h.byte)
+0020: 19      -   relocation table - segment anchor (l.byte)
+0021: 00      -   relocation table - segment anchor (h.byte)
+0022 to 01FF  -   reserved relocation area  (00) 
+
+
+
+
+===================================================================================================

@@ -1,0 +1,963 @@
+EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
+ 
+blackbox_base.exe_ -- emu8086 assembler version: 4.08  
+ 
+[ 20/05/2019  --  21:14:56 ] 
+ 
+===================================================================================================
+[LINE]     LOC: MACHINE CODE                          SOURCE
+===================================================================================================
+ 
+[   1]        :                                       ;EQUIVALENCIAS USADAS PARA REPRESENTAR LAS POSICIONES DE LA IMPRESION DE CADENAS EN PANTALLA Y LOS COLORES
+[   2]        :                                       
+[   3]        :                                       ;Posiciones en pantalla para imprimir mensajes para el usuario
+[   4]        :                                       INIXMSJ EQU 3
+[   5]        :                                       INIYMSJ EQU 23
+[   6]        :                                       
+[   7]        :                                       ;Posiciones en pantalla para pedir al usuario datos de entrada
+[   8]        :                                       INIXPEDIR EQU 54
+[   9]        :                                       INIYPEDIR EQU 23
+[  10]        :                                       
+[  11]        :                                       FILLASERARR EQU 2
+[  12]        :                                       FILLASERABJ EQU 20
+[  13]        :                                       COLLASERIZQ EQU 7
+[  14]        :                                       COLLASERDCH EQU 45
+[  15]        :                                       
+[  16]        :                                       ;Para escribir en color (fondo frontal)
+[  17]        :                                       COLORRESOLVER EQU 0Bh
+[  18]        :                                       COLORMARCAR EQU 9Bh
+[  19]        :                                       
+[  20]        :                                       ;Constantes de tablero y espejos
+[  21]        :                                       NUMCASILLASJUEGO EQU 64
+[  22]        :                                       NUMESPEJOSDEBUG EQU 8
+[  23]        :                                       NUMCOLFILJUEGO EQU 8
+[  24]        :                                       NUMTIPOSESPEJOS EQU 4
+[  25]        :                                       
+[  26]        :                                       ;Caracter de marcado de celda
+[  27]        :                                       CARACTMARCADO EQU '*'
+[  28]        :                                       
+[  29]        :                                       data segment
+[  30]        :                                       ;Posicion en MatrizJuego
+[  31]    0000: 00                                    filMatrizJuego DB ?  ;0-7
+[  32]    0001: 00                                    colMatrizJuego DB ?  ;0-7
+[  33]    0002: 00                                    posMatrizJuego DB ?  ;0-63
+[  34]        :                                       
+[  35]        :                                       ;Matriz tablero de juego
+[  36]    0003: 00 00 00 00 00 00 00 00 00 00 00 00   matrizJuego DB 64 dup(0)
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00                         
+[  37]        :                                       
+[  38]        :                                       ;Para el numero de espejos del juego, las posiciones que ocupan en el tablero y su tipo
+[  39]    0043: 02 0D 10 1E 29 2B 35 3F 00 00 00 00   vectorPosEspejos DB 2, 13, 16, 30, 41, 43, 53, 63, 12 dup(0)
+                00 00 00 00 00 00 00 00             
+[  40]    0057: 01 04 02 03 02 04 02 04 00 00 00 00   vectorTiposEspejos DB 1, 4, 2, 3, 2, 4, 2, 4, 12 dup(0)
+                00 00 00 00 00 00 00 00             
+[  41]    006B: 14                                    numEspejos DB 20
+[  42]        :                                       
+[  43]        :                                       ;Para los espejos que el usuario marca como existentes
+[  44]    006C: 00 00 00 00 00 00 00 00 00 00 00 00   vectorPosEspejosMarcados DB 20 dup (0)
+                00 00 00 00 00 00 00 00             
+[  45]    0080: 00                                    numEspejosMarcados DB 0
+[  46]        :                                       
+[  47]        :                                       ;Posicion desde la que se dispara el laser
+[  48]    0081: 00                                    posLaser DB ?
+[  49]    0082: 00                                    direcDisparoLaser DB ?  ;0:arriba
+[  50]        :                                       ;1:derecha
+[  51]        :                                       ;2:abajo
+[  52]        :                                       ;3:izquierda
+[  53]        :                                       
+[  54]        :                                       ;Para calcular trayectoria
+[  55]        :                                       ;posSalidaLaser DB ?
+[  56]    0083: 00 03 02 01                           cambioTrayTipo1 DB 0, 3, 2, 1
+[  57]    0087: 01 00 03 02                           cambioTrayTipo2 DB 1, 0, 3, 2
+[  58]    008B: 02 01 00 03                           cambioTrayTipo3 DB 2, 1, 0, 3
+[  59]    008F: 03 02 01 00                           cambioTrayTipo4 DB 3, 2, 1, 0
+[  60]        :                                       
+[  61]        :                                       ;Para imprimir la la MatrizJuego al resolver
+[  62]    0093: 20                                    caractImprimirMatrizJuego DB ' '  ; espacioEnBlanco
+[  63]    0094: B3                                    DB '³'  ; espejoTipo1
+[  64]    0095: 2F                                    DB '/'  ; espejoTipo2
+[  65]    0096: C4                                    DB 'Ä'  ; espejoTipo3
+[  66]    0097: 5C                                    DB '\'  ; espejoTipo4
+[  67]        :                                       
+[  68]        :                                       ;Para el PROC colocarCursor
+[  69]    0098: 00                                    fila    DB ?
+[  70]    0099: 00                                    colum   DB ?
+[  71]        :                                       
+[  72]        :                                       ;Para la E de texto por parte del usuario
+[  73]    009A: 00 00 00 00 00 00 00                  cadenaE DB 7 dup (0)
+[  74]        :                                       
+[  75]    00A1: 46 2C 43 20 20 20 20 20 20 20 20 20   tablero DB "F,C         1   2   3   4   5   6   7   8              ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                31 20 20 20 32 20 20 20 33 20 20 20 
+                34 20 20 20 35 20 20 20 36 20 20 20 
+                37 20 20 20 38 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  76]    00E9: 20 20 20 20 20 20 20 20 20 20 20 20   DB "            L1  L2  L3  L4  L5  L6  L7  L8             ³             ³", 10, 13
+                4C 31 20 20 4C 32 20 20 4C 33 20 20 
+                4C 34 20 20 4C 35 20 20 4C 36 20 20 
+                4C 37 20 20 4C 38 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  77]    0131: 20 20 20 20 20 20 20 20 20 20 B3 20   DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³  LASER1-32  ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 4C 41 
+                53 45 52 31 2D 33 32 20 20 B3 0A 0D 
+                                                    
+[  78]    0179: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³  _          ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 5F 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  79]    01C1: 31 20 20 4C 33 32 20 20 20 20 B3 20   DB "1  L32    ³   ³   ³   ³   ³   ³   ³   ³   ³    L9      ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                39 20 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  80]    0209: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  81]    023A: 32 20 20 4C 33 31 20 20 20 20 B3 20   DB "2  L31    ³   ³   ³   ³   ³   ³   ³   ³   ³    L10     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 30 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  82]    0282: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  83]    02CA: 33 20 20 4C 33 30 20 20 20 20 B3 20   DB "3  L30    ³   ³   ³   ³   ³   ³   ³   ³   ³    L11     ³MARCAR1-8,1-8³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 31 20 20 20 20 20 B3 4D 41 52 43 
+                41 52 31 2D 38 2C 31 2D 38 B3 0A 0D 
+                                                    
+[  84]    0312: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³_            ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 5F 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  85]    035A: 34 20 20 4C 32 39 20 20 20 20 B3 20   DB "4  L29    ³   ³   ³   ³   ³   ³   ³   ³   ³    L12     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 32 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  86]    03A2: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  87]    03D3: 35 20 20 4C 32 38 20 20 20 20 B3 20   DB "5  L28    ³   ³   ³   ³   ³   ³   ³   ³   ³    L13     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 33 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  88]    041B: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  89]    0463: 36 20 20 4C 32 37 20 20 20 20 B3 20   DB "6  L27    ³   ³   ³   ³   ³   ³   ³   ³   ³    L14     ³   RESOLVER  ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 34 20 20 20 20 20 B3 20 20 20 52 
+                45 53 4F 4C 56 45 52 20 20 B3 0A 0D 
+                                                    
+[  90]    04AB: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³   _         ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 5F 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  91]    04F3: 37 20 20 4C 32 36 20 20 20 20 B3 20   DB "7  L26    ³   ³   ³   ³   ³   ³   ³   ³   ³    L15     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 35 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 0A 0D 
+                                                    
+[  92]    053B: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 0A 
+                0D                                  
+[  93]    056C: 38 20 20 4C 32 35 20 20 20 20 B3 20   DB "8  L25    ³   ³   ³   ³   ³   ³   ³   ³   ³    L16     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 4C 
+                31 36 20 20 20 20 20 DA C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 BF 0A 0D 
+                                                    
+[  94]    05B4: 20 20 20 20 20 20 C4 C4 C4 C4 C5 C4   DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C5 C4 
+                C4 C4 C5 C4 C4 C4 C5 C4 C4 C4 C4 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  95]    05FC: 20 20 20 20 20 20 20 20 20 20 B3 20   DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³    SALIR    ³", 10, 13
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 B3 20 
+                20 20 B3 20 20 20 B3 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                53 41 4C 49 52 20 20 20 20 B3 0A 0D 
+                                                    
+[  96]    0644: 20 20 20 20 20 20 20 20 20 20 20 4C   DB "           L24 L23 L22 L21 L20 L19 L18 L17             ³    _        ³", 10, 13
+                32 34 20 4C 32 33 20 4C 32 32 20 4C 
+                32 31 20 4C 32 30 20 4C 31 39 20 4C 
+                31 38 20 4C 31 37 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 B3 20 20 20 20 
+                5F 20 20 20 20 20 20 20 20 B3 0A 0D 
+                                                    
+[  97]    068C: 20 20 20 20 20 20 20 20 20 20 20 20   DB "                                                       ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ$"
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 20 20 20 20 20 
+                20 20 20 20 20 20 20 C0 C4 C4 C4 C4 
+                C4 C4 C4 C4 C4 C4 C4 C4 C4 D9 24    
+[  98]        :                                       
+[  99]        :                                       ;Mensajes de Interfaz
+[ 100]    06D3: 4D 6F 64 6F 20 64 65 62 75 67 20 28   msjDebug DB "Modo debug (con tablero precargado)? (S/N)$"
+                63 6F 6E 20 74 61 62 6C 65 72 6F 20 
+                70 72 65 63 61 72 67 61 64 6F 29 3F 
+                20 28 53 2F 4E 29 24                
+[ 101]    06FE: 49 6E 74 72 6F 64 75 63 65 20 4D 66   msjOpcion DB "Introduce Mf,c para marcar R S o Lz para disparar: $"
+                2C 63 20 70 61 72 61 20 6D 61 72 63 
+                61 72 20 52 20 53 20 6F 20 4C 7A 20 
+                70 61 72 61 20 64 69 73 70 61 72 61 
+                72 3A 20 24                         
+[ 102]    0732: 48 61 73 20 70 65 72 64 69 64 6F 20   msjPerdida DB "Has perdido la partida$"
+                6C 61 20 70 61 72 74 69 64 61 24    
+[ 103]    0749: 45 6E 68 6F 72 61 62 75 65 6E 61 21   msjGanada DB "Enhorabuena! Has ganado la partida$"
+                20 48 61 73 20 67 61 6E 61 64 6F 20 
+                6C 61 20 70 61 72 74 69 64 61 24    
+[ 104]        :                                       
+[ 105]    076C: 49 6E 74 72 6F 64 75 63 65 20 75 6E   msjInicial db "Introduce un vector$"
+                20 76 65 63 74 6F 72 24             
+[ 106]    0780: 49 6E 74 72 6F 64 75 63 65 20 65 6C   msjMax db "Introduce el valor de MAX:$"
+                20 76 61 6C 6F 72 20 64 65 20 4D 41 
+                58 3A 24                            
+[ 107]    079B: 49 6E 74 72 6F 64 75 63 65 20 65 6C   msjMin db "Introduce el valor de MIN:$"
+                20 76 61 6C 6F 72 20 64 65 20 4D 49 
+                4E 3A 24                            
+[ 108]    07B6: 52 65 73 75 6C 74 61 64 6F 3A 24      msjResultado db "Resultado:$"
+[ 109]    07C1: 2C 24                                 coma db ",$"
+[ 110]    07C3: 00 00 00 00 00 00 00 00 00 00         vector1 db 10 dup(0)
+[ 111]    07CD: 00 00 00 00 00 00 00 00 00 00         vector2 db 10 dup(0)
+[ 112]    07D7: 00                                    n db ?
+[ 113]    07D8: 00                                    numeros db ?
+[ 114]    07D9: 00                                    min db ?
+[ 115]    07DA: 00                                    max db ?
+[ 116]        :                                       
+[ 117]        :                                       data ends
+[ 118]        :                                       
+[ 119]        :                                       
+[ 120]        :                                       
+[ 121]        :                                       stack segment
+[ 122]    07E0: 00 00 00 00 00 00 00 00 00 00 00 00   DW 128 DUP(0)
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00 00 00 00 00 00 00 00 00 
+                00 00 00 00                         
+[ 123]        :                                       stack ends
+[ 124]        :                                       
+[ 125]        :                                       
+[ 126]        :                                       
+[ 127]        :                                       code segment
+[ 128]        :                                       
+[ 129]        :                                       ;*************************************************************************************
+[ 130]        :                                       ;********** Procedimientos utilizados en practicas previas ****************************
+[ 131]        :                                       ;*************************************************************************************
+[ 132]        :                                       
+[ 133]        :                                       ;Convierte una cadena de caracteres a un numero entero
+[ 134]        :                                       ;E: DX contiene la direccion de la cadena a convertir (debe apuntar al 1er caracter numerico y terminar en 13 o '$')
+[ 135]        :                                       ;S: AX contiene el resultado de la conversion, 0 si hay error o si la cadena a convertir es "0"
+[ 136]    08E0:                                       CadenaANumero PROC
+[ 137]    08E0: 53                                    push bx
+[ 138]    08E1: 51                                    push cx
+[ 139]    08E2: 52                                    push dx ; cambia con MUL de 16bits
+[ 140]    08E3: 56                                    push si
+[ 141]    08E4: 57                                    push di
+[ 142]        :                                       
+[ 143]    08E5: 8B F2                                 mov si, dx
+[ 144]    08E7: 33 C0                                 xor ax, ax
+[ 145]    08E9: BB 0A 00                              mov bx, 10
+[ 146]        :                                       
+[ 147]    08EC: 80 3C 2D                              cmp [si], '-'
+[ 148]    08EF: 75 03                                 jne BCadNum
+[ 149]        :                                       
+[ 150]    08F1: 8B FE                                 mov di, si  ;Ajustes si viene un '-' como primer caracter
+[ 151]    08F3: 46                                    inc si
+[ 152]        :                                       
+[ 153]    08F4:                                       BCadNum:
+[ 154]    08F4: 8A 0C                                 mov cl, [si]          ;Controles de fin
+[ 155]    08F6: 80 F9 0D                              cmp cl, 13
+[ 156]    08F9: 74 1B                                 je compruebaNeg
+[ 157]    08FB: 80 F9 24                              cmp cl, '$'
+[ 158]    08FE: 74 16                                 je compruebaNeg
+[ 159]        :                                       
+[ 160]    0900: 80 F9 30                              cmp cl, '0'
+[ 161]    0903: 7C 1A                                 jl error
+[ 162]    0905: 80 F9 39                              cmp cl, '9'
+[ 163]    0908: 7F 15                                 jg error
+[ 164]        :                                       
+[ 165]    090A: F7 E3                                 mul bx
+[ 166]    090C: 80 E9 30                              sub cl, '0'
+[ 167]    090F: 32 ED                                 xor ch, ch
+[ 168]    0911: 03 C1                                 add ax, cx
+[ 169]    0913: 46                                    inc si
+[ 170]    0914: EB DE                                 jmp BCadNum
+[ 171]        :                                       
+[ 172]    0916:                                       compruebaNeg:
+[ 173]    0916: 80 3D 2D                              cmp [di], '-'
+[ 174]    0919: 75 06                                 jne finCadenaANumero
+[ 175]    091B: F7 D8                                 neg ax
+[ 176]    091D: EB 02                                 jmp finCadenaANumero
+[ 177]        :                                       
+[ 178]    091F:                                       error:
+[ 179]    091F: 33 C0                                 xor ax, ax
+[ 180]        :                                       
+[ 181]    0921:                                       finCadenaANumero:
+[ 182]    0921: 5F                                    pop di
+[ 183]    0922: 5E                                    pop si
+[ 184]    0923: 5A                                    pop dx
+[ 185]    0924: 59                                    pop cx
+[ 186]    0925: 5B                                    pop bx
+[ 187]    0926: C3                                    ret
+[ 188]        :                                       CadenaANumero ENDP
+[ 189]        :                                       
+[ 190]        :                                       
+[ 191]        :                                       
+[ 192]        :                                       ;Convierte un numero entero a una cadena de caracteres terminada en $
+[ 193]        :                                       ;E: AX contiene el numero a convertir
+[ 194]        :                                       ;   DX contiene la direccion de la cadena donde almacena la cadena resultado
+[ 195]    0927:                                       NumeroACadena PROC
+[ 196]    0927: 50                                    push ax
+[ 197]    0928: 53                                    push bx
+[ 198]    0929: 51                                    push cx
+[ 199]    092A: 52                                    push dx
+[ 200]    092B: 57                                    push di
+[ 201]        :                                       
+[ 202]    092C: BB 0A 00                              mov bx, 10
+[ 203]    092F: 8B FA                                 mov di, dx
+[ 204]        :                                       
+[ 205]    0931: 33 C9                                 xor cx, cx
+[ 206]        :                                       
+[ 207]    0933: 3D 00 00                              cmp ax, 0
+[ 208]    0936: 7D 06                                 jge BNumCad
+[ 209]        :                                       
+[ 210]    0938: C6 05 2D                              mov [di], '-'
+[ 211]    093B: 47                                    inc di
+[ 212]    093C: F7 D8                                 neg ax
+[ 213]        :                                       
+[ 214]    093E:                                       BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+[ 215]    093E: 33 D2                                 xor dx, dx
+[ 216]    0940: F7 F3                                 div bx
+[ 217]    0942: 80 C2 30                              add dl, '0'
+[ 218]    0945: 52                                    push dx
+[ 219]    0946: 41                                    inc cx
+[ 220]    0947: 3D 00 00                              cmp ax, 0
+[ 221]    094A: 75 F2                                 jne BNumCad
+[ 222]        :                                       
+[ 223]    094C:                                       BInvertir:      ;Bucle para invertir los restos
+[ 224]    094C: 8F 05                                 pop [di]
+[ 225]    094E: 47                                    inc di
+[ 226]    094F: E2 FB                                 loop BInvertir
+[ 227]        :                                       
+[ 228]    0951: C6 05 24                              mov [di], '$'
+[ 229]        :                                       
+[ 230]    0954: 5F                                    pop di
+[ 231]    0955: 5A                                    pop dx
+[ 232]    0956: 59                                    pop cx
+[ 233]    0957: 5B                                    pop bx
+[ 234]    0958: 58                                    pop ax
+[ 235]    0959: C3                                    ret
+[ 236]        :                                       NumeroACadena ENDP
+[ 237]        :                                       
+[ 238]        :                                       
+[ 239]        :                                       
+[ 240]        :                                       ;F: Imprime una cadena terminada en $ en la posicion donde se encuentre el cursor
+[ 241]        :                                       ;E: DX direccion de comienzo de la cadena a imprimir
+[ 242]    095A:                                       Imprimir PROC
+[ 243]    095A: 50                                    push ax
+[ 244]        :                                       
+[ 245]    095B: B4 09                                 mov ah,9h
+[ 246]    095D: CD 21                                 int 21h
+[ 247]        :                                       
+[ 248]    095F: 58                                    pop ax
+[ 249]    0960: C3                                    ret
+[ 250]        :                                       Imprimir ENDP
+[ 251]        :                                       
+[ 252]        :                                       
+[ 253]        :                                       
+[ 254]        :                                       ;F: Imprime un caracter a color en la posicion actual del cursor
+[ 255]        :                                       ;E: AL contiene el caracter
+[ 256]        :                                       ;   BL el codigo de color a imprimir
+[ 257]    0961:                                       ImprimirCarColor PROC
+[ 258]    0961: 50                                    push ax
+[ 259]    0962: 53                                    push bx
+[ 260]    0963: 51                                    push cx
+[ 261]        :                                       
+[ 262]    0964: B4 09                                 mov ah, 9
+[ 263]    0966: 32 FF                                 xor bh, bh
+[ 264]    0968: B9 01 00                              mov cx, 1
+[ 265]    096B: CD 10                                 int 10h
+[ 266]        :                                       
+[ 267]    096D: 59                                    pop cx
+[ 268]    096E: 5B                                    pop bx
+[ 269]    096F: 58                                    pop ax
+[ 270]    0970: C3                                    ret
+[ 271]        :                                       ImprimirCarColor ENDP
+[ 272]        :                                       
+[ 273]        :                                       
+[ 274]        :                                       
+[ 275]        :                                       ;F: Coloca el cursor en una determinada fila y colum de pantalla
+[ 276]        :                                       ;E: las variables fila y colum deben contener los valores de posicionamiento
+[ 277]    0971:                                       ColocarCursor PROC
+[ 278]    0971: 50                                    push ax
+[ 279]    0972: 53                                    push bx
+[ 280]    0973: 52                                    push dx
+[ 281]        :                                       
+[ 282]    0974: B4 02                                 mov ah, 2
+[ 283]    0976: 8A 36 98 00                           mov dh, fila
+[ 284]    097A: 8A 16 99 00                           mov dl, colum
+[ 285]    097E: 32 FF                                 xor bh, bh
+[ 286]    0980: CD 10                                 int 10h
+[ 287]        :                                       
+[ 288]    0982: 5A                                    pop dx
+[ 289]    0983: 5B                                    pop bx
+[ 290]    0984: 58                                    pop ax
+[ 291]    0985: C3                                    ret
+[ 292]        :                                       ColocarCursor ENDP
+[ 293]        :                                       
+[ 294]        :                                       
+[ 295]        :                                       
+[ 296]        :                                       ;Lee una cadena por teclado
+[ 297]        :                                       ;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+[ 298]        :                                       ;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+[ 299]    0986:                                       LeerCadena PROC
+[ 300]    0986: 50                                    push ax
+[ 301]        :                                       
+[ 302]    0987: B4 0A                                 mov ah, 0ah
+[ 303]    0989: CD 21                                 int 21h
+[ 304]        :                                       
+[ 305]    098B: 58                                    pop ax
+[ 306]    098C: C3                                    ret
+[ 307]        :                                       LeerCadena ENDP
+[ 308]        :                                       
+[ 309]        :                                       
+[ 310]        :                                       ;**************************************************************************************
+[ 311]        :                                       ;************************** Nuevos procedimientos que se entregan ***************************
+[ 312]        :                                       ;**************************************************************************************
+[ 313]        :                                       
+[ 314]        :                                       
+[ 315]        :                                       ;F: Calcula un valor aleatorio entre 0 y un valor maximo dado-1
+[ 316]        :                                       ;E: BL valor maximo
+[ 317]        :                                       ;S: AH valor aleatorio calculado
+[ 318]    098D:                                       NumAleatorio PROC
+[ 319]    098D: 51                                    push cx
+[ 320]    098E: 52                                    push dx
+[ 321]        :                                       
+[ 322]    098F: B4 2C                                 mov ah,2Ch ;interrupcion que recupera la hora actual del sistema operativo
+[ 323]    0991: CD 21                                 int 21h
+[ 324]        :                                       ;ch=horas cl=minutos dh=segundos dl=centesimas de segundo, 1/100 secs
+[ 325]        :                                       
+[ 326]    0993: 32 E4                                 xor ah,ah
+[ 327]    0995: 8A C2                                 mov al,dl
+[ 328]    0997: F6 F3                                 div bl
+[ 329]        :                                       
+[ 330]    0999: 5A                                    pop dx
+[ 331]    099A: 59                                    pop cx
+[ 332]    099B: C3                                    ret
+[ 333]        :                                       NumAleatorio ENDP
+[ 334]        :                                       
+[ 335]        :                                       
+[ 336]        :                                       
+[ 337]        :                                       ;F: Lee un caracter por teclado sin eco por pantalla
+[ 338]        :                                       ;S: AL caracter ASCII leido
+[ 339]    099C:                                       LeerTeclaSinEco PROC
+[ 340]    099C: B4 08                                 mov ah,8 ;1 para que sea con eco
+[ 341]    099E: CD 21                                 int 21h
+[ 342]        :                                       
+[ 343]    09A0: C3                                    ret
+[ 344]        :                                       LeerTeclaSinEco ENDP
+[ 345]        :                                       
+[ 346]        :                                       
+[ 347]        :                                       
+[ 348]        :                                       ;F: Oculta el cursor del teclado
+[ 349]    09A1:                                       OcultarCursor PROC
+[ 350]    09A1: 50                                    push ax
+[ 351]    09A2: 51                                    push cx
+[ 352]        :                                       
+[ 353]    09A3: B4 01                                 mov ah,1
+[ 354]    09A5: B5 20                                 mov ch,20h
+[ 355]    09A7: 32 C9                                 xor cl,cl
+[ 356]    09A9: CD 10                                 int 10h
+[ 357]        :                                       
+[ 358]    09AB: 59                                    pop cx
+[ 359]    09AC: 58                                    pop ax
+[ 360]    09AD: C3                                    ret
+[ 361]        :                                       OcultarCursor ENDP
+[ 362]        :                                       
+[ 363]        :                                       
+[ 364]        :                                       
+[ 365]        :                                       ;F: Muestra el cusor del teclado
+[ 366]    09AE:                                       MostrarCursor PROC
+[ 367]    09AE: 50                                    push ax
+[ 368]    09AF: 51                                    push cx
+[ 369]        :                                       
+[ 370]    09B0: B4 01                                 mov ah,1
+[ 371]    09B2: B5 0B                                 mov ch,0Bh
+[ 372]    09B4: B1 0C                                 mov cl,0Ch
+[ 373]    09B6: CD 10                                 int 10h
+[ 374]        :                                       
+[ 375]    09B8: 59                                    pop cx
+[ 376]    09B9: 58                                    pop ax
+[ 377]    09BA: C3                                    ret
+[ 378]        :                                       MostrarCursor ENDP
+[ 379]        :                                       
+[ 380]        :                                       
+[ 381]        :                                       
+[ 382]        :                                       ;F: Borra la pantalla (la deja en negro)
+[ 383]    09BB:                                       BorrarPantalla PROC
+[ 384]    09BB: 50                                    push ax
+[ 385]    09BC: 53                                    push bx
+[ 386]    09BD: 51                                    push cx
+[ 387]    09BE: 52                                    push dx
+[ 388]        :                                       
+[ 389]    09BF: B4 06                                 mov ah, 6h
+[ 390]    09C1: 32 C0                                 xor al, al
+[ 391]    09C3: B7 07                                 mov bh, 7
+[ 392]    09C5: 33 C9                                 xor cx, cx
+[ 393]    09C7: B6 18                                 mov dh, 24
+[ 394]    09C9: B2 4F                                 mov dl, 79
+[ 395]    09CB: CD 10                                 int 10h
+[ 396]        :                                       
+[ 397]    09CD: 5A                                    pop dx
+[ 398]    09CE: 59                                    pop cx
+[ 399]    09CF: 5B                                    pop bx
+[ 400]    09D0: 58                                    pop ax
+[ 401]    09D1: C3                                    ret
+[ 402]        :                                       BorrarPantalla ENDP
+[ 403]        :                                       
+[ 404]        :                                       
+[ 405]        :                                       ;F: Borra la linea de mensajes completa
+[ 406]    09D2:                                       BorrarLineaMsj PROC
+[ 407]    09D2: 50                                    push ax
+[ 408]    09D3: 53                                    push bx
+[ 409]    09D4: 51                                    push cx
+[ 410]    09D5: 52                                    push dx
+[ 411]        :                                       
+[ 412]    09D6: B4 06                                 mov ah, 6h
+[ 413]    09D8: 32 C0                                 xor al, al
+[ 414]    09DA: B7 07                                 mov bh, 7
+[ 415]    09DC: 32 C9                                 xor cl, cl
+[ 416]    09DE: B5 17                                 mov ch, INIYMSJ
+[ 417]    09E0: B6 18                                 mov dh, INIYMSJ+1
+[ 418]    09E2: B2 4F                                 mov dl, 79
+[ 419]    09E4: CD 10                                 int 10h
+[ 420]        :                                       
+[ 421]    09E6: 5A                                    pop dx
+[ 422]    09E7: 59                                    pop cx
+[ 423]    09E8: 5B                                    pop bx
+[ 424]    09E9: 58                                    pop ax
+[ 425]    09EA: C3                                    ret
+[ 426]        :                                       BorrarLineaMsj ENDP
+[ 427]        :                                       
+[ 428]        :                                       
+[ 429]        :                                       
+[ 430]        :                                       ;F: Borra la zona de las cadenas de mensajes que imprimen en pantalla
+[ 431]    09EB:                                       BorrarEntradaUsuario PROC
+[ 432]    09EB: 50                                    push ax
+[ 433]    09EC: 53                                    push bx
+[ 434]    09ED: 51                                    push cx
+[ 435]    09EE: 52                                    push dx
+[ 436]        :                                       
+[ 437]    09EF: B4 06                                 mov ah, 6h
+[ 438]    09F1: 32 C0                                 xor al, al
+[ 439]    09F3: B7 07                                 mov bh, 7
+[ 440]    09F5: B1 36                                 mov cl, INIXPEDIR
+[ 441]    09F7: B5 17                                 mov ch, INIYMSJ
+[ 442]    09F9: B6 18                                 mov dh, INIYMSJ+1
+[ 443]    09FB: B2 3A                                 mov dl, INIXPEDIR+4
+[ 444]    09FD: CD 10                                 int 10h
+[ 445]        :                                       
+[ 446]    09FF: 5A                                    pop dx
+[ 447]    0A00: 59                                    pop cx
+[ 448]    0A01: 5B                                    pop bx
+[ 449]    0A02: 58                                    pop ax
+[ 450]    0A03: C3                                    ret
+[ 451]        :                                       BorrarEntradaUsuario ENDP
+[ 452]        :                                       
+[ 453]        :                                       
+[ 454]        :                                       
+[ 455]        :                                       ;F: Limpia el buffer de entrada del teclado por si tuviera algo
+[ 456]        :                                       ;  LimpiarBufferTeclado PROC
+[ 457]        :                                       ;    push ax
+[ 458]        :                                       ;
+[ 459]        :                                       ;    mov ax,0C00h
+[ 460]        :                                       ;    int 21h
+[ 461]        :                                       ;
+[ 462]        :                                       ;    pop ax
+[ 463]        :                                       ;    ret
+[ 464]        :                                       ;  LimpiarBufferTeclado ENDP
+[ 465]        :                                       
+[ 466]        :                                       
+[ 467]        :                                       ;**************************************************************************************
+[ 468]        :                                       ;******************** Procedimientos de IU ********************************************
+[ 469]        :                                       ;**************************************************************************************
+[ 470]        :                                       
+[ 471]        :                                       
+[ 472]        :                                       
+[ 473]    0A04:                                       primerProc PROC
+[ 474]        :                                       
+[ 475]    0A04: 52                                    push dx
+[ 476]    0A05: 53                                    push bx
+[ 477]    0A06: 50                                    push ax
+[ 478]    0A07: 56                                    push si
+[ 479]        :                                       
+[ 480]        :                                       
+[ 481]    0A08: BA 6C 07                              lea dx, msjInicial
+[ 482]    0A0B: E8 4C FF                              call Imprimir
+[ 483]        :                                       
+[ 484]    0A0E: 33 DB                                 xor bx, bx
+[ 485]    0A10: BE C3 07                              lea si, vector1
+[ 486]        :                                       
+[ 487]    0A13:                                       pedir:
+[ 488]    0A13: FE 06 98 00                           inc fila
+[ 489]    0A17: E8 57 FF                              call ColocarCursor
+[ 490]        :                                       
+[ 491]    0A1A: C6 06 9A 00 03                        mov cadenaE[0], 3
+[ 492]    0A1F: BA 9A 00                              lea dx, cadenaE
+[ 493]    0A22: E8 61 FF                              call LeerCadena
+[ 494]        :                                       
+[ 495]    0A25: BA 9C 00                              lea dx, cadenaE[2]
+[ 496]    0A28: E8 B5 FE                              call CadenaANumero
+[ 497]        :                                       
+[ 498]    0A2B: 3D 00 00                              cmp ax, 0
+[ 499]    0A2E: 74 12                                 je finPedir
+[ 500]        :                                       
+[ 501]    0A30: 3D 01 00                              cmp ax, 1
+[ 502]    0A33: 7C DE                                 jl pedir
+[ 503]    0A35: 3D 14 00                              cmp ax, 20
+[ 504]    0A38: 7F D9                                 jg pedir
+[ 505]        :                                       
+[ 506]    0A3A: 88 00                                 mov [si+bx], al
+[ 507]    0A3C: 43                                    inc bx
+[ 508]    0A3D: 83 FB 0A                              cmp bx, 10
+[ 509]    0A40: 7C D1                                 jl pedir
+[ 510]        :                                       
+[ 511]    0A42:                                       finPedir:
+[ 512]    0A42: 88 1E D7 07                           mov n, bl
+[ 513]        :                                       
+[ 514]        :                                       
+[ 515]    0A46: 5E                                    pop si
+[ 516]    0A47: 58                                    pop ax
+[ 517]    0A48: 5B                                    pop bx
+[ 518]    0A49: 5A                                    pop dx
+[ 519]    0A4A: C3                                    ret
+[ 520]        :                                       primerProc ENDP
+[ 521]        :                                       
+[ 522]        :                                       
+[ 523]    0A4B:                                       segundoProc PROC
+[ 524]        :                                       
+[ 525]    0A4B: 50                                    push ax
+[ 526]    0A4C: 53                                    push bx
+[ 527]    0A4D: 51                                    push cx
+[ 528]    0A4E: 56                                    push si
+[ 529]    0A4F: 52                                    push dx
+[ 530]        :                                       
+[ 531]        :                                       
+[ 532]    0A50: BE C3 07                              lea si, vector1
+[ 533]        :                                       
+[ 534]    0A53: 33 C0                                 xor ax,ax
+[ 535]    0A55: 33 DB                                 xor bx,bx
+[ 536]        :                                       
+[ 537]    0A57: 33 C9                                 xor cx, cx
+[ 538]    0A59: 8A 0E D7 07                           mov cl, n
+[ 539]        :                                       
+[ 540]    0A5D:                                       primerBucle:
+[ 541]        :                                       
+[ 542]    0A5D: 8A 04                                 mov al, [si]
+[ 543]    0A5F: BF CD 07                              lea di, vector2
+[ 544]        :                                       
+[ 545]    0A62: 53                                    push bx
+[ 546]    0A63: 51                                    push cx
+[ 547]    0A64: 56                                    push si
+[ 548]    0A65: 33 C9                                 xor cx, cx
+[ 549]    0A67: 8A 0E D7 07                           mov cl, n
+[ 550]    0A6B: 33 DB                                 xor bx, bx
+[ 551]    0A6D: BE C3 07                              lea si, vector1
+[ 552]    0A70:                                       segundoBucle:
+[ 553]        :                                       
+[ 554]    0A70: 8A 24                                 mov ah, [si]
+[ 555]        :                                       
+[ 556]    0A72: 3A E0                                 cmp ah, al
+[ 557]    0A74: 75 01                                 jne nada
+[ 558]        :                                       
+[ 559]    0A76: 43                                    inc bx
+[ 560]        :                                       
+[ 561]    0A77:                                       nada:
+[ 562]    0A77: 46                                    inc si
+[ 563]        :                                       
+[ 564]    0A78: E2 F6                                 loop segundoBucle
+[ 565]    0A7A: 8B C3                                 mov ax, bx
+[ 566]    0A7C: 5E                                    pop si
+[ 567]    0A7D: 59                                    pop cx
+[ 568]    0A7E: 5B                                    pop bx
+[ 569]        :                                       
+[ 570]        :                                       
+[ 571]    0A7F: 89 01                                 mov [di+bx], ax
+[ 572]    0A81: 43                                    inc bx
+[ 573]    0A82: 46                                    inc si
+[ 574]        :                                       
+[ 575]    0A83: E2 D8                                 loop primerBucle
+[ 576]        :                                       
+[ 577]        :                                       
+[ 578]    0A85: 5A                                    pop dx
+[ 579]    0A86: 5E                                    pop si
+[ 580]    0A87: 59                                    pop cx
+[ 581]    0A88: 5B                                    pop bx
+[ 582]    0A89: 58                                    pop ax
+[ 583]    0A8A: C3                                    ret
+[ 584]        :                                       segundoProc ENDP
+[ 585]        :                                       
+[ 586]        :                                       
+[ 587]    0A8B:                                       tercerProc PROC
+[ 588]        :                                       
+[ 589]    0A8B: 52                                    push dx
+[ 590]    0A8C: 50                                    push ax
+[ 591]        :                                       
+[ 592]    0A8D: FE 06 98 00                           inc fila
+[ 593]    0A91: E8 DD FE                              call ColocarCursor
+[ 594]        :                                       
+[ 595]    0A94: BA 9B 07                              lea dx, msjMin
+[ 596]    0A97: E8 C0 FE                              call Imprimir
+[ 597]        :                                       
+[ 598]    0A9A:                                       volvermin:
+[ 599]        :                                       
+[ 600]    0A9A: C6 06 9A 00 03                        mov cadenaE[0], 3
+[ 601]    0A9F: BA 9A 00                              lea dx, cadenaE
+[ 602]    0AA2: E8 E1 FE                              call LeerCadena
+[ 603]        :                                       
+[ 604]    0AA5: BA 9C 00                              lea dx, cadenaE[2]
+[ 605]    0AA8: E8 35 FE                              call CadenaANumero
+[ 606]        :                                       
+[ 607]    0AAB: 3D 00 00                              cmp ax, 0
+[ 608]    0AAE: 7E EA                                 jle volvermin
+[ 609]    0AB0: 3A 06 D7 07                           cmp al, n
+[ 610]    0AB4: 7D E4                                 jge volvermin
+[ 611]        :                                       
+[ 612]    0AB6: A2 D9 07                              mov min, al
+[ 613]        :                                       
+[ 614]    0AB9: FE 06 98 00                           inc fila
+[ 615]    0ABD: E8 B1 FE                              call ColocarCursor
+[ 616]        :                                       
+[ 617]    0AC0: BA 80 07                              lea dx, msjMax
+[ 618]    0AC3: E8 94 FE                              call Imprimir
+[ 619]        :                                       
+[ 620]    0AC6:                                       volvermax:
+[ 621]        :                                       
+[ 622]    0AC6: C6 06 9A 00 03                        mov cadenaE[0], 3
+[ 623]    0ACB: BA 9A 00                              lea dx, cadenaE
+[ 624]    0ACE: E8 B5 FE                              call LeerCadena
+[ 625]        :                                       
+[ 626]    0AD1: BA 9C 00                              lea dx, cadenaE[2]
+[ 627]    0AD4: E8 09 FE                              call CadenaANumero
+[ 628]        :                                       
+[ 629]    0AD7: 8A 1E D9 07                           mov bl, min
+[ 630]    0ADB: 3A C3                                 cmp al, bl
+[ 631]    0ADD: 7E E7                                 jle volvermax
+[ 632]    0ADF: 3A 06 D7 07                           cmp al, n
+[ 633]    0AE3: 7D E1                                 jge volvermax
+[ 634]        :                                       
+[ 635]    0AE5: A2 DA 07                              mov max, al
+[ 636]        :                                       
+[ 637]    0AE8: 58                                    pop ax
+[ 638]    0AE9: 5A                                    pop dx
+[ 639]    0AEA: C3                                    ret
+[ 640]        :                                       tercerProc ENDP
+[ 641]        :                                       
+[ 642]        :                                       
+[ 643]    0AEB:                                       cuartoProc PROC
+[ 644]        :                                       
+[ 645]        :                                       
+[ 646]    0AEB: 52                                    push dx
+[ 647]    0AEC: 50                                    push ax
+[ 648]    0AED: 53                                    push bx
+[ 649]    0AEE: 51                                    push cx
+[ 650]    0AEF: 56                                    push si
+[ 651]        :                                       
+[ 652]    0AF0: FE 06 98 00                           inc fila
+[ 653]    0AF4: E8 7A FE                              call ColocarCursor
+[ 654]        :                                       
+[ 655]        :                                       
+[ 656]    0AF7: BA B6 07                              lea dx, msjResultado
+[ 657]    0AFA: E8 5D FE                              call Imprimir
+[ 658]        :                                       
+[ 659]        :                                       
+[ 660]    0AFD: 33 C9                                 xor cx, cx
+[ 661]    0AFF: 33 DB                                 xor bx, bx
+[ 662]    0B01: 8A 0E DA 07                           mov cl, max
+[ 663]    0B05: 2A 0E D9 07                           sub cl, min
+[ 664]    0B09: 41                                    inc cx
+[ 665]    0B0A: BE CD 07                              lea si, vector2
+[ 666]    0B0D: 33 C0                                 xor ax, ax
+[ 667]        :                                       
+[ 668]    0B0F:                                       bucleCuatro:
+[ 669]        :                                       
+[ 670]    0B0F: 8A 00                                 mov al, [si+bx]
+[ 671]    0B11: BA 9A 00                              lea dx, cadenaE
+[ 672]    0B14: E8 10 FE                              call NumeroACadena
+[ 673]    0B17: E8 40 FE                              call Imprimir
+[ 674]        :                                       
+[ 675]    0B1A: 83 F9 01                              cmp cx, 1
+[ 676]    0B1D: 74 06                                 je saltar
+[ 677]        :                                       
+[ 678]        :                                       
+[ 679]    0B1F: BA C1 07                              lea dx, coma
+[ 680]    0B22: E8 35 FE                              call Imprimir
+[ 681]        :                                       
+[ 682]    0B25:                                       saltar:
+[ 683]    0B25: 43                                    inc bx
+[ 684]    0B26: E2 E7                                 loop bucleCuatro
+[ 685]        :                                       
+[ 686]        :                                       
+[ 687]    0B28: 5E                                    pop si
+[ 688]    0B29: 59                                    pop cx
+[ 689]    0B2A: 5B                                    pop bx
+[ 690]    0B2B: 58                                    pop ax
+[ 691]    0B2C: 5A                                    pop dx
+[ 692]        :                                       
+[ 693]    0B2D: C3                                    ret
+[ 694]        :                                       cuartoProc ENDP
+[ 695]        :                                       
+[ 696]        :                                       
+[ 697]        :                                       ;**************************************************************************************
+[ 698]        :                                       ;******************** Procedimientos para la logica del juego *************************
+[ 699]        :                                       ;**************************************************************************************
+[ 700]        :                                       
+[ 701]        :                                       
+[ 702]        :                                       ;*************************************************************************************
+[ 703]        :                                       ;************************** Programa Principal ***************************************
+[ 704]        :                                       ;*************************************************************************************
+[ 705]        :                                       
+[ 706]        :                                       
+[ 707]    0B2E:                                       start:
+[ 708]    0B2E: B8 00 00                              mov ax, data
+[ 709]    0B31: 8E D8                                 mov ds, ax
+[ 710]        :                                       
+[ 711]    0B33: E8 CE FE                              call primerProc
+[ 712]    0B36: E8 12 FF                              call segundoProc
+[ 713]    0B39: E8 4F FF                              call tercerProc
+[ 714]    0B3C: E8 AC FF                              call cuartoProc
+[ 715]        :                                       
+[ 716]        :                                       
+[ 717]    0B3F: B4 4C                                 mov ah, 4ch
+[ 718]    0B41: CD 21                                 int 21h
+[ 719]        :                                       
+[ 720]        :                                       code ends
+[ 721]        :                                       END Start
+[ 722]        :                                       
+[ 723]        :                                       ;  msjInicial db "Introduce un vector$"
+[ 724]        :                                       ;  msjMax db "Introduce el valor de MAX:$"
+[ 725]        :                                       ;  msjMin db "Introduce el valor de MIN:$"
+[ 726]        :                                       ;  vector1 db 10 dup(0)
+[ 727]        :                                       ;  vector2 db 10 dup(0)
+[ 728]        :                                       ;  n db ?
+[ 729]        :                                       ;  numeros db ?
+[ 730]        :                                       ;  min db ?
+[ 731]        :                                       ;  max db ?
+[ 732]        :                                       ;
+[ 733]        :                                       
+ 
+===================================================================================================
+ 
+EXE HEADER - bytes from 0000 to 01FF inclusive.
+
+0000: 4D      -   exe signature (M)
+0001: 5A      -   exe signature (Z)
+0002: 43      -   bytes on last page (l.byte)
+0003: 01      -   bytes on last page (h.byte)
+0004: 07      -   512 byte pages in file (l.byte)
+0005: 00      -   512 byte pages in file (h.byte)
+0006: 01      -   relocations (l.byte)
+0007: 00      -   relocations (h.byte)
+0008: 20      -   paragraphs in header (l.byte)
+0009: 00      -   paragraphs in header (h.byte)
+000A: 00      -   minimum memory (l.byte)
+000B: 00      -   minimum memory (h.byte)
+000C: FF      -   maximum memory (l.byte)
+000D: FF      -   maximum memory (h.byte)
+000E: 7E      -   SS - stack segment (l.byte)
+000F: 00      -   SS - stack segment (h.byte)
+0010: 00      -   SP - stack pointer (l.byte)
+0011: 01      -   SP - stack pointer (h.byte)
+0012: CA      -   check sum (l.byte)
+0013: 88      -   check sum (h.byte)
+0014: 4E      -   IP - instruction pointer (l.byte)
+0015: 02      -   IP - instruction pointer (h.byte)
+0016: 8E      -   CS - code segment (l.byte)
+0017: 00      -   CS - code segment (h.byte)
+0018: 1E      -   relocation table adress (l.byte)
+0019: 00      -   relocation table adress (h.byte)
+001A: 00      -   overlay number (l.byte)
+001B: 00      -   overlay number (h.byte)
+001C: 01      -   signature (l.byte)
+001D: 00      -   signature (h.byte)
+001E: 4F      -   relocation table - offset inside segment (l.byte)
+001F: 02      -   relocation table - offset inside segment (h.byte)
+0020: 8E      -   relocation table - segment anchor (l.byte)
+0021: 00      -   relocation table - segment anchor (h.byte)
+0022 to 01FF  -   reserved relocation area  (00) 
+
+
+
+
+===================================================================================================

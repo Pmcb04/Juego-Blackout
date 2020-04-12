@@ -1,0 +1,392 @@
+data segment
+
+saltoLinea db  10, 13, "$"
+vector1 db 10 dup(0)
+vector2 db 10 dup(0)
+cadenaE db ?
+frase1 db "Introduce el numero de elementos del vector:$"
+frase2 db "Introduce el indice de valores a mostrar:$"
+resultado db "Resultado:$"
+error db "ERROR$"
+espacio db " $"
+n db ?
+a db ?
+b db ?
+
+
+ends
+
+stack segment
+
+dw 128 DUP(0)
+
+ends
+
+
+code segment
+
+;Imprime una cadena por pantalla
+;E: DX contiene la direccion de la cadena a imprimir
+Imprimir PROC
+push ax
+
+mov ah, 9
+int 21h
+
+pop ax
+ret
+Imprimir ENDP
+
+;Lee una cadena por teclado
+;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+LeerCadena PROC
+push ax
+
+mov ah, 0ah
+int 21h
+
+pop ax
+ret
+LeerCadena ENDP
+
+;Convierte una cadena de caracteres a un numero entero
+;E: DX contiene la direccion de la cadena a convertir (terminada en 13 o '$')
+;S: AX contiene el resultado de la conversion
+CadenaANumero PROC
+push bx
+push cx
+push dx ; cambia con MUL de 16bits
+push si
+push di
+
+mov si, dx
+xor ax, ax
+mov bx, 10
+
+cmp [si], '-'
+jne BCadNum
+
+mov di, si  ;Ajustes si viene un '-' como primer caracter
+inc si
+
+BCadNum:
+mov cl, [si]          ;Controles de fin
+cmp cl, 13
+je compruebaNeg
+cmp cl, '$'
+je compruebaNeg
+
+mul bx
+sub cl, '0'
+xor ch, ch
+add ax, cx
+inc si
+jmp BCadNum
+
+compruebaNeg:
+cmp [di], '-'
+jne finCadenaANumero
+neg ax
+
+finCadenaANumero:
+pop di
+pop si
+pop dx
+pop cx
+pop bx
+ret
+CadenaANumero ENDP
+
+;Convierte un numero entero a una cadena de caracteres terminada en $
+;E: AX contiene el numero a convertir
+;E: DX contiene la direccion de la cadena donde almacena la cadena resultado
+NumeroACadena PROC
+push ax
+push bx
+push cx
+push dx
+push di
+
+mov bx, 10
+mov di, dx
+
+xor cx, cx
+
+cmp ax, 0
+jge BNumCad
+
+mov [di], '-'
+inc di
+neg ax
+
+BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+xor dx, dx
+div bx
+add dl, '0'
+push dx
+inc cx
+cmp ax, 0
+jne BNumCad
+
+BInvertir:      ;Bucle para invertir los restos
+pop [di]
+inc di
+loop BInvertir
+
+mov [di], '$'
+
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+NumeroACadena ENDP
+
+
+primero PROC
+
+
+push dx
+push cx
+push bx
+push ax
+push si
+
+
+pedir:
+lea dx, frase1
+call Imprimir
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+cmp al, 5
+jl errorN
+cmp al, 10
+jg errorN
+
+lea dx, saltoLinea
+call Imprimir
+jmp bueno
+
+errorN:
+lea dx, error
+call Imprimir
+
+lea dx, saltoLinea
+call Imprimir
+jmp pedir
+
+bueno:
+mov n, al
+
+xor cx,cx
+mov cl, n
+xor bx, bx
+xor ax,ax
+lea si, vector1
+
+bucle:
+
+otro:
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+push cx
+
+lea dx, saltoLinea
+call Imprimir
+
+cmp bx, 0
+je introducir
+
+mov cx, [si+bx-1]
+
+cmp cl, al
+jge otro
+
+introducir:
+mov [si+bx], al
+inc bx
+pop cx
+
+loop bucle
+
+
+pop si
+pop ax
+pop bx
+pop cx
+pop dx
+
+ret
+primero ENDP
+
+
+segundo PROC
+
+push dx
+push ax
+push cx
+
+
+noa:
+
+lea dx, frase2
+call Imprimir
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+lea dx, saltoLinea
+call Imprimir
+
+cmp al, 0
+jl noa
+mov cl, n
+dec cl
+cmp cl, al
+jl noa
+
+mov a, al
+
+lea dx, frase2
+call Imprimir
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+lea dx, saltoLinea
+call Imprimir
+
+cmp al, 0
+jl noa
+mov cl, n
+dec cl
+cmp cl, al
+jl noa
+
+mov b, al
+
+pop cx
+pop ax
+pop dx
+
+ret
+segundo ENDP
+
+
+tercero PROC
+
+push di
+push si
+push bx
+push cx
+push ax
+
+lea di, vector1
+lea si, vector2
+xor bx, bx
+mov bl, a
+
+xor cx, cx
+mov cl, b
+sub cl, a
+
+cmp cx, 0
+jle saltar
+
+bucleRellenar:
+mov ax, [di+bx]
+mov [si], ax
+inc si
+inc bx
+loop bucleRellenar
+
+saltar:
+pop ax
+pop cx
+pop bx
+pop si
+pop si
+ret
+tercero ENDP
+
+cuarto PROC
+
+push si
+push cx
+push ax
+
+lea si, vector2
+xor cx, cx
+mov cl, b
+sub cl, a
+inc cl
+xor ax, ax
+
+lea dx, resultado
+call Imprimir
+
+bucleMostrar:
+mov al, [si]
+inc si
+
+lea dx, cadenaE
+call NumeroACadena
+call Imprimir
+
+lea dx, espacio
+call Imprimir
+loop bucleMostrar
+
+pop ax
+pop cx
+pop si
+
+
+
+ret
+cuarto ENDP
+
+
+start:
+mov ax, data
+mov ds, ax
+
+
+call primero
+call segundo
+call tercero
+call cuarto
+
+mov ax, 4c00h
+int 21h
+
+
+ends
+
+end start
+
+
+
+
+; [SOURCE]: D:\Explorador de archivos\Descargas\plantilla_base.asm

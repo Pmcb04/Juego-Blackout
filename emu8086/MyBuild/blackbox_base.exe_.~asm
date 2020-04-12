@@ -1,0 +1,736 @@
+;EQUIVALENCIAS USADAS PARA REPRESENTAR LAS POSICIONES DE LA IMPRESION DE CADENAS EN PANTALLA Y LOS COLORES
+
+;Posiciones en pantalla para imprimir mensajes para el usuario
+INIXMSJ EQU 3
+INIYMSJ EQU 23
+
+;Posiciones en pantalla para pedir al usuario datos de entrada
+INIXPEDIR EQU 54
+INIYPEDIR EQU 23
+
+FILLASERARR EQU 2
+FILLASERABJ EQU 20
+COLLASERIZQ EQU 7
+COLLASERDCH EQU 45
+
+;Para escribir en color (fondo frontal)
+COLORRESOLVER EQU 0Bh
+COLORMARCAR EQU 9Bh
+
+;Constantes de tablero y espejos
+NUMCASILLASJUEGO EQU 64
+NUMESPEJOSDEBUG EQU 8
+NUMCOLFILJUEGO EQU 8
+NUMTIPOSESPEJOS EQU 4
+
+;Caracter de marcado de celda
+CARACTMARCADO EQU '*'
+
+data segment
+;Posicion en MatrizJuego
+filMatrizJuego DB ?  ;0-7
+colMatrizJuego DB ?  ;0-7
+posMatrizJuego DB ?  ;0-63
+
+;Matriz tablero de juego
+matrizJuego DB 64 dup(0)
+
+;Para el numero de espejos del juego, las posiciones que ocupan en el tablero y su tipo
+vectorPosEspejos DB 2, 13, 16, 30, 41, 43, 53, 63, 12 dup(0)
+vectorTiposEspejos DB 1, 4, 2, 3, 2, 4, 2, 4, 12 dup(0)
+numEspejos DB 20
+
+;Para los espejos que el usuario marca como existentes
+vectorPosEspejosMarcados DB 20 dup (0)
+numEspejosMarcados DB 0
+
+;Posicion desde la que se dispara el laser
+posLaser DB ?
+direcDisparoLaser DB ?  ;0:arriba
+;1:derecha
+;2:abajo
+;3:izquierda
+
+;Para calcular trayectoria
+;posSalidaLaser DB ?
+cambioTrayTipo1 DB 0, 3, 2, 1
+cambioTrayTipo2 DB 1, 0, 3, 2
+cambioTrayTipo3 DB 2, 1, 0, 3
+cambioTrayTipo4 DB 3, 2, 1, 0
+
+;Para imprimir la la MatrizJuego al resolver
+caractImprimirMatrizJuego DB ' '  ; espacioEnBlanco
+DB '³'  ; espejoTipo1
+DB '/'  ; espejoTipo2
+DB 'Ä'  ; espejoTipo3
+DB '\'  ; espejoTipo4
+
+;Para el PROC colocarCursor
+fila    DB ?
+colum   DB ?
+
+;Para la E de texto por parte del usuario
+cadenaE DB 7 dup (0)
+
+tablero DB "F,C         1   2   3   4   5   6   7   8              ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "            L1  L2  L3  L4  L5  L6  L7  L8             ³             ³", 10, 13
+DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³  LASER1-32  ³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³  _          ³", 10, 13
+DB "1  L32    ³   ³   ³   ³   ³   ³   ³   ³   ³    L9      ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "2  L31    ³   ³   ³   ³   ³   ³   ³   ³   ³    L10     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "3  L30    ³   ³   ³   ³   ³   ³   ³   ³   ³    L11     ³MARCAR1-8,1-8³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³_            ³", 10, 13
+DB "4  L29    ³   ³   ³   ³   ³   ³   ³   ³   ³    L12     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "5  L28    ³   ³   ³   ³   ³   ³   ³   ³   ³    L13     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "6  L27    ³   ³   ³   ³   ³   ³   ³   ³   ³    L14     ³   RESOLVER  ³", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³   _         ³", 10, 13
+DB "7  L26    ³   ³   ³   ³   ³   ³   ³   ³   ³    L15     ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ", 10, 13
+DB "8  L25    ³   ³   ³   ³   ³   ³   ³   ³   ³    L16     ÚÄÄÄÄÄÄÄÄÄÄÄÄÄ¿", 10, 13
+DB "      ÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄÄ        ³             ³", 10, 13
+DB "          ³   ³   ³   ³   ³   ³   ³   ³   ³            ³    SALIR    ³", 10, 13
+DB "           L24 L23 L22 L21 L20 L19 L18 L17             ³    _        ³", 10, 13
+DB "                                                       ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÙ$"
+
+;Mensajes de Interfaz
+msjDebug DB "Modo debug (con tablero precargado)? (S/N)$"
+msjOpcion DB "Introduce Mf,c para marcar R S o Lz para disparar: $"
+msjPerdida DB "Has perdido la partida$"
+msjGanada DB "Enhorabuena! Has ganado la partida$"
+
+msjInicial db "Introduce un vector$"
+msjMax db "Introduce el valor de MAX:$"
+msjMin db "Introduce el valor de MIN:$"
+msjResultado db "Resultado:$"
+coma db ",$"
+vector1 db 10 dup(0)
+vector2 db 10 dup(0)
+n db ?
+numeros db ?
+min db ?
+max db ?
+
+data ends
+
+
+
+stack segment
+DW 128 DUP(0)
+stack ends
+
+
+
+code segment
+
+;*************************************************************************************
+;********** Procedimientos utilizados en practicas previas ****************************
+;*************************************************************************************
+
+;Convierte una cadena de caracteres a un numero entero
+;E: DX contiene la direccion de la cadena a convertir (debe apuntar al 1er caracter numerico y terminar en 13 o '$')
+;S: AX contiene el resultado de la conversion, 0 si hay error o si la cadena a convertir es "0"
+CadenaANumero PROC
+push bx
+push cx
+push dx ; cambia con MUL de 16bits
+push si
+push di
+
+mov si, dx
+xor ax, ax
+mov bx, 10
+
+cmp [si], '-'
+jne BCadNum
+
+mov di, si  ;Ajustes si viene un '-' como primer caracter
+inc si
+
+BCadNum:
+mov cl, [si]          ;Controles de fin
+cmp cl, 13
+je compruebaNeg
+cmp cl, '$'
+je compruebaNeg
+
+cmp cl, '0'
+jl error
+cmp cl, '9'
+jg error
+
+mul bx
+sub cl, '0'
+xor ch, ch
+add ax, cx
+inc si
+jmp BCadNum
+
+compruebaNeg:
+cmp [di], '-'
+jne finCadenaANumero
+neg ax
+jmp finCadenaANumero
+
+error:
+xor ax, ax
+
+finCadenaANumero:
+pop di
+pop si
+pop dx
+pop cx
+pop bx
+ret
+CadenaANumero ENDP
+
+
+
+;Convierte un numero entero a una cadena de caracteres terminada en $
+;E: AX contiene el numero a convertir
+;   DX contiene la direccion de la cadena donde almacena la cadena resultado
+NumeroACadena PROC
+push ax
+push bx
+push cx
+push dx
+push di
+
+mov bx, 10
+mov di, dx
+
+xor cx, cx
+
+cmp ax, 0
+jge BNumCad
+
+mov [di], '-'
+inc di
+neg ax
+
+BNumCad:        ;Bucle que transforma cada digito a caracter, de menor a mayor peso
+xor dx, dx
+div bx
+add dl, '0'
+push dx
+inc cx
+cmp ax, 0
+jne BNumCad
+
+BInvertir:      ;Bucle para invertir los restos
+pop [di]
+inc di
+loop BInvertir
+
+mov [di], '$'
+
+pop di
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+NumeroACadena ENDP
+
+
+
+;F: Imprime una cadena terminada en $ en la posicion donde se encuentre el cursor
+;E: DX direccion de comienzo de la cadena a imprimir
+Imprimir PROC
+push ax
+
+mov ah,9h
+int 21h
+
+pop ax
+ret
+Imprimir ENDP
+
+
+
+;F: Imprime un caracter a color en la posicion actual del cursor
+;E: AL contiene el caracter
+;   BL el codigo de color a imprimir
+ImprimirCarColor PROC
+push ax
+push bx
+push cx
+
+mov ah, 9
+xor bh, bh
+mov cx, 1
+int 10h
+
+pop cx
+pop bx
+pop ax
+ret
+ImprimirCarColor ENDP
+
+
+
+;F: Coloca el cursor en una determinada fila y colum de pantalla
+;E: las variables fila y colum deben contener los valores de posicionamiento
+ColocarCursor PROC
+push ax
+push bx
+push dx
+
+mov ah, 2
+mov dh, fila
+mov dl, colum
+xor bh, bh
+int 10h
+
+pop dx
+pop bx
+pop ax
+ret
+ColocarCursor ENDP
+
+
+
+;Lee una cadena por teclado
+;E: DX contiene la direccion de la cadena donde se almacenar  la cadena leida
+;E: la posicion 0 de esa cadena debe contener el numero maximo de caracteres a leer
+LeerCadena PROC
+push ax
+
+mov ah, 0ah
+int 21h
+
+pop ax
+ret
+LeerCadena ENDP
+
+
+;**************************************************************************************
+;************************** Nuevos procedimientos que se entregan ***************************
+;**************************************************************************************
+
+
+;F: Calcula un valor aleatorio entre 0 y un valor maximo dado-1
+;E: BL valor maximo
+;S: AH valor aleatorio calculado
+NumAleatorio PROC
+push cx
+push dx
+
+mov ah,2Ch ;interrupcion que recupera la hora actual del sistema operativo
+int 21h
+;ch=horas cl=minutos dh=segundos dl=centesimas de segundo, 1/100 secs
+
+xor ah,ah
+mov al,dl
+div bl
+
+pop dx
+pop cx
+ret
+NumAleatorio ENDP
+
+
+
+;F: Lee un caracter por teclado sin eco por pantalla
+;S: AL caracter ASCII leido
+LeerTeclaSinEco PROC
+mov ah,8 ;1 para que sea con eco
+int 21h
+
+ret
+LeerTeclaSinEco ENDP
+
+
+
+;F: Oculta el cursor del teclado
+OcultarCursor PROC
+push ax
+push cx
+
+mov ah,1
+mov ch,20h
+xor cl,cl
+int 10h
+
+pop cx
+pop ax
+ret
+OcultarCursor ENDP
+
+
+
+;F: Muestra el cusor del teclado
+MostrarCursor PROC
+push ax
+push cx
+
+mov ah,1
+mov ch,0Bh
+mov cl,0Ch
+int 10h
+
+pop cx
+pop ax
+ret
+MostrarCursor ENDP
+
+
+
+;F: Borra la pantalla (la deja en negro)
+BorrarPantalla PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+xor cx, cx
+mov dh, 24
+mov dl, 79
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarPantalla ENDP
+
+
+;F: Borra la linea de mensajes completa
+BorrarLineaMsj PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+xor cl, cl
+mov ch, INIYMSJ
+mov dh, INIYMSJ+1
+mov dl, 79
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarLineaMsj ENDP
+
+
+
+;F: Borra la zona de las cadenas de mensajes que imprimen en pantalla
+BorrarEntradaUsuario PROC
+push ax
+push bx
+push cx
+push dx
+
+mov ah, 6h
+xor al, al
+mov bh, 7
+mov cl, INIXPEDIR
+mov ch, INIYMSJ
+mov dh, INIYMSJ+1
+mov dl, INIXPEDIR+4
+int 10h
+
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+BorrarEntradaUsuario ENDP
+
+
+
+;F: Limpia el buffer de entrada del teclado por si tuviera algo
+;  LimpiarBufferTeclado PROC
+;    push ax
+;
+;    mov ax,0C00h
+;    int 21h
+;
+;    pop ax
+;    ret
+;  LimpiarBufferTeclado ENDP
+
+
+;**************************************************************************************
+;******************** Procedimientos de IU ********************************************
+;**************************************************************************************
+
+
+
+primerProc PROC
+
+push dx
+push bx
+push ax
+push si
+
+
+lea dx, msjInicial
+call Imprimir
+
+xor bx, bx
+lea si, vector1
+
+pedir:
+inc fila
+call ColocarCursor
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+cmp ax, 0
+je finPedir
+
+cmp ax, 1
+jl pedir
+cmp ax, 20
+jg pedir
+
+mov [si+bx], al
+inc bx
+cmp bx, 10
+jl pedir
+
+finPedir:
+mov n, bl
+
+
+pop si
+pop ax
+pop bx
+pop dx
+ret
+primerProc ENDP
+
+
+segundoProc PROC
+
+push ax
+push bx
+push cx
+push si
+push dx
+
+
+lea si, vector1
+
+xor ax,ax
+xor bx,bx
+
+xor cx, cx
+mov cl, n
+
+primerBucle:
+
+mov al, [si]
+lea di, vector2
+
+push bx
+push cx
+push si
+xor cx, cx
+mov cl, n
+xor bx, bx
+lea si, vector1
+segundoBucle:
+
+mov ah, [si]
+
+cmp ah, al
+jne nada
+
+inc bx
+
+nada:
+inc si
+
+loop segundoBucle
+mov ax, bx
+pop si
+pop cx
+pop bx
+
+
+mov [di+bx], ax
+inc bx
+inc si
+
+loop primerBucle
+
+
+pop dx
+pop si
+pop cx
+pop bx
+pop ax
+ret
+segundoProc ENDP
+
+
+tercerProc PROC
+
+push dx
+push ax
+
+inc fila
+call ColocarCursor
+
+lea dx, msjMin
+call Imprimir
+
+volvermin:
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+cmp ax, 0
+jle volvermin
+cmp al, n
+jge volvermin
+
+mov min, al
+
+inc fila
+call ColocarCursor
+
+lea dx, msjMax
+call Imprimir
+
+volvermax:
+
+mov cadenaE[0], 3
+lea dx, cadenaE
+call LeerCadena
+
+lea dx, cadenaE[2]
+call CadenaANumero
+
+mov bl, min
+cmp al, bl
+jle volvermax
+cmp al, n
+jge volvermax
+
+mov max, al
+
+pop ax
+pop dx
+ret
+tercerProc ENDP
+
+
+cuartoProc PROC
+
+
+push dx
+push ax
+push bx
+push cx
+push si
+
+inc fila
+call ColocarCursor
+
+
+lea dx, msjResultado
+call Imprimir
+
+
+xor cx, cx
+xor bx, bx
+mov cl, max
+sub cl, min
+inc cx
+lea si, vector2
+xor ax, ax
+
+bucleCuatro:
+
+mov al, [si+bx]
+lea dx, cadenaE
+call NumeroACadena
+call Imprimir
+
+cmp cx, 1
+je saltar
+
+
+lea dx, coma
+call Imprimir
+
+saltar:
+inc bx
+loop bucleCuatro
+
+
+pop si
+pop cx
+pop bx
+pop ax
+pop dx
+
+ret
+cuartoProc ENDP
+
+
+;**************************************************************************************
+;******************** Procedimientos para la logica del juego *************************
+;**************************************************************************************
+
+
+;*************************************************************************************
+;************************** Programa Principal ***************************************
+;*************************************************************************************
+
+
+start:
+mov ax, data
+mov ds, ax
+
+call primerProc
+call segundoProc
+call tercerProc
+call cuartoProc
+
+
+mov ah, 4ch
+int 21h
+
+code ends
+END Start
+
+;  msjInicial db "Introduce un vector$"
+;  msjMax db "Introduce el valor de MAX:$"
+;  msjMin db "Introduce el valor de MIN:$"
+;  vector1 db 10 dup(0)
+;  vector2 db 10 dup(0)
+;  n db ?
+;  numeros db ?
+;  min db ?
+;  max db ?
+;
+
+
+
+; [SOURCE]: D:\Explorador de archivos\Descargas\blackbox_base.asm

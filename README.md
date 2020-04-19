@@ -21,7 +21,7 @@ La siguiente tabla muestra todas las posibilidades:
 ||/|←
 ||-|↑
 ||`\`|→
-|**↑**|`\`|↑
+|**↑**|\||↑
 ||/|→
 ||-|↓
 ||`\`|←

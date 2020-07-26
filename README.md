@@ -1,4 +1,11 @@
-# OBJETIVO Y REGLAS BÁSICAS DEL JUEGO
+# :books: Realizado por: 
+  - :computer: [Pedro Miguel Carmona Broncano](https://github.com/Pmcb04)
+  - :date: Curso 2018/2019
+  - :office: [Universidad de Extremadura](https://www.unex.es)
+
+
+
+# :video_game: OBJETIVO Y REGLAS BÁSICAS DEL JUEGO
 El objetivo es identificar en un tablero de juego las posiciones donde se esconden un conjunto de espejos. Para ganar el juego es necesario marcar correctamente todas las casillas del tablero donde pensamos que están los espejos escondidos.
 
 Para ello nos podemos ayudar disparando rayos láser. Estos rayos pueden modificar su trayectoria (hacia arriba, hacia abajo, hacia la derecha o hacia la izquierda) dependiendo de la orientación de los espejos que se encuentran en su camino.

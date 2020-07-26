@@ -3,6 +3,10 @@
   - :date: Curso 2018/2019
   - :office: [Universidad de Extremadura](https://www.unex.es)
 
+ 
+  ## :computer: PROGRAMAS UTILIZADOS
+   - Emu8086
+
 
 
 # :video_game: OBJETIVO Y REGLAS BÁSICAS DEL JUEGO
